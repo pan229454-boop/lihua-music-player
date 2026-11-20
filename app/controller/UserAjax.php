@@ -58,12 +58,12 @@ class UserAjax extends Common
         if (Users::updateByUid($data['uid'], $up)) {
             $result = [
                 'code' => 0,
-                'message' => '编辑用户成功',
+                'message' => '编辑用户成功', 'msg' => '编辑用户成功',
             ];
         } else {
             $result = [
                 'code' => 1,
-                'message' => '保存成功,无任何修改',
+                'message' => '保存成功,无任何修改', 'msg' => '保存成功,无任何修改',
             ];
         }
         return json($result);

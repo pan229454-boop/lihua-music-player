@@ -1,0 +1,168 @@
+/* 留言板小组件样式（前缀 lhyc- ，避免和各个首页主题冲突） */
+.lhyc-launch,
+.lhyc-panel,
+.lhyc-panel * {
+  box-sizing: border-box;
+}
+.lhyc-launch {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff7aa2, #ff5c8a);
+  color: #fff;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(255, 92, 138, 0.38);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.lhyc-launch:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(255, 92, 138, 0.45); }
+.lhyc-launch:active { transform: translateY(0); }
+.lhyc-launch-text { white-space: nowrap; }
+.lhyc-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: #ff5c8a;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+.lhyc-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  background: rgba(20, 12, 22, 0.45);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.lhyc-mask.lhyc-in { opacity: 1; }
+.lhyc-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 2147483002;
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  max-width: 100%;
+  height: 100%;
+  background: #fff;
+  color: #2b2b33;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.18);
+  transform: translateX(102%);
+  transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+}
+.lhyc-panel.lhyc-in { transform: translateX(0); }
+.lhyc-panel[hidden] { display: none !important; }
+.lhyc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #ff7aa2, #ff5c8a);
+  color: #fff;
+}
+.lhyc-title { display: flex; flex-direction: column; gap: 3px; }
+.lhyc-strong { font-size: 16px; }
+.lhyc-sub { font-size: 12px; opacity: .9; }
+.lhyc-close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lhyc-close:hover { background: rgba(255, 255, 255, .35); }
+.lhyc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: #fbf7f9;
+  -webkit-overflow-scrolling: touch;
+}
+.lhyc-empty { padding: 32px 10px; color: #9a9aa6; font-size: 13px; text-align: center; }
+.lhyc-item {
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(120, 90, 110, .09);
+}
+.lhyc-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+.lhyc-name { color: #ff5c8a; font-weight: 600; }
+.lhyc-tag {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #ffe3ec;
+  color: #d6336c;
+  font-size: 11px;
+  line-height: 16px;
+}
+.lhyc-time { margin-left: auto; color: #a2a2ae; }
+.lhyc-text { color: #3a3a44; line-height: 1.6; word-break: break-word; white-space: pre-wrap; }
+.lhyc-form {
+  padding: 12px 14px 14px;
+  border-top: 1px solid #f0e6ea;
+  background: #fff;
+}
+.lhyc-form[hidden] { display: none !important; }
+.lhyc-who { margin-bottom: 8px; color: #8a8a96; font-size: 12px; }
+.lhyc-guest { display: flex; gap: 8px; margin-bottom: 8px; }
+.lhyc-input,
+.lhyc-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ecdde3;
+  border-radius: 9px;
+  background: #fdfcfd;
+  color: #2b2b33;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.lhyc-input:focus,
+.lhyc-textarea:focus { border-color: #ffa8c1; background: #fff; }
+.lhyc-textarea { resize: none; line-height: 1.6; }
+.lhyc-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.lhyc-count { color: #a2a2ae; font-size: 12px; }
+.lhyc-hint { flex: 1; color: #d6336c; font-size: 12px; }
+.lhyc-send {
+  padding: 8px 20px;
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ff7aa2, #ff5c8a);
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.lhyc-send:disabled { opacity: .6; cursor: default; }
+@media (max-width: 480px) {
+  .lhyc-panel { width: 100%; }
+  .lhyc-launch { right: 12px; bottom: 12px; padding: 10px 14px; }
+}

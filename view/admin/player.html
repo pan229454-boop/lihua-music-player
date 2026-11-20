@@ -111,12 +111,13 @@
             <div class="larry-personal layui-collapse">
                 <div class="layui-tab layui-tab-card" style="margin: 0;border-width: 0;">
                     <ul class="layui-tab-title">
-                        <li class="layui-this">域名授权</li>
-                        <li>获取代码</li>
+                        {if condition="domain_auth_enabled()"}<li class="layui-this">域名授权</li>{/if}
+                        <li {if condition="domain_auth_enabled() == false"}class="layui-this"{/if}>获取代码</li>
                         <li>插件下载</li>
                     </ul>
                     <div class="layui-tab-content">
-                        <div class="layui-tab-item layui-show">
+    {if condition="domain_auth_enabled()"}
+                    <div class="layui-tab-item layui-show">
                             <div class="layui-form layui-form-pane">
                                 <div class="layui-form-item" style="padding-left: 8px;">
                                     <div class="layui-form layui-form-pane">
@@ -144,7 +145,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="layui-tab-item">
+                        {/if}
+                        <div class="layui-tab-item{if condition="domain_auth_enabled() == false"} layui-show{/if}">
                             <div class="layui-form layui-form-pane">
                             	<blockquote class="layui-elem-quote">
                                         代刷网需要在网站信息设置里面关闭：下单验证模块
@@ -161,7 +163,10 @@
                                 		免插件：将此段播放器代码插入到网页<b style="color:#f00">最底部</b>的<b>&#60;/body&#62;&#60;/html&#62;</b>标签<b style="color:#0c0">之前</b>
                                         
                                     </blockquote>
-                                    <textarea id="script_code" class="layui-textarea" style="min-height:0"></textarea>
+                                    <textarea id="script_code" class="layui-textarea" style="min-height:0"><div id="music" api="{:get_domain()}"></div>
+<script id="xplayer" src="{:get_domain()}api/PlayerJs/id/{$entity.id}"></script></textarea>
+                                    <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" style="margin-top:8px"
+                                            onclick="copyScriptCode(this)">复制代码</button>
                                 </div>
                                 <div class="layui-form-item">
                                     <blockquote class="layui-elem-quote layui-quote-nm" style="margin: 10px 0;">
@@ -179,46 +184,41 @@
                         </div>
                         <div class="layui-tab-item">
                             <div class="layui-form layui-form-pane">
+                                <blockquote class="layui-elem-quote" style="border-color:#16baaa">
+                                    当前版本<b style="color:#0c0">免插件</b>：播放器就是一段 HTML + JS，把「获取代码」里的代码粘到网页 <b>&#60;/body&#62;</b> 之前就能用。<br>
+                                    下面是给常见建站程序准备的<b>嵌入包</b>：下载的包里已经填好本站地址和当前播放器的 ID，解压后照 readme 操作即可。<br>要给别人的网站用，或者不想带本站信息，可以下 <a href="/down/common/Player-Embed-Universal.zip" style="color:#1e9fff">静态通用包</a>（里面的地址留空，自己填）。
+                                </blockquote>
                                 <div class="layui-form-item">
                                     <label class="layui-form-label">播放器ID</label>
                                     <div class="layui-input-block">
-                                        <input type="text" lay-verify="required" value="{$entity.id}"
-                                               class="layui-input">
+                                        <input type="text" lay-verify="required" value="{$entity.id}" class="layui-input">
                                     </div>
                                 </div>
                                 <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#23282d">
-                                    <a href="/down/wordpress/WordPress-MyhkPlayer-20200712.zip"
-                                       title="WordPress插件,支持WordPress全版本..." target="_blank"><img class="thumb"
-                                                                                                  src="/static/images/wp.png"/></a>
-                                    <a class="layui-btn layui-btn-xs" style="background-color:#23282d"
-                                       href="/down/wordpress/WordPress-MyhkPlayer-20200712.zip" title="wordpress插件"
-                                       target="_blank"> [WordPress插件]</a>
-                                    <p>支持WordPress全版本...</p>
-                                </blockquote>
-                                <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#1da9da">
-                                    <a href="http://www.emlog.net/plugin/327" title="Emlog插件,支持Emlog全版本..."
-                                       target="_blank"><img class="thumb" src="/static/images/emlog.png"/></a>
-                                    <a class="layui-btn layui-btn-xs" style="background-color:#1da9da"
-                                       href="http://www.emlog.net/plugin/327" title="Emlog插件,支持Emlog全版本..."
-                                       target="_blank"> [Emlog插件]</a>
-                                    <p>支持Emlog全版本...</p>
-                                </blockquote>
-                                <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#3a6ea5">
-                                    <a href="https://app.zblogcn.com/?id=1803" title="Zblog-Php版插件,Asp版暂未发布..."
-                                       target="_blank"><img class="thumb" src="/static/images/zblog.png"/></a>
-                                    <a class="layui-btn layui-btn-xs" style="background-color:#3a6ea5"
-                                       href="http://app.zblogcn.com/?id=1803" title="下载Zblog-PHP版插件" target="_blank">
-                                        [Z-Blog插件]</a>
-                                    <p>仅支持Z-PHP全版本...</p>
+                                    <img class="thumb" src="/static/images/wp.png"/>
+                                    <a class="layui-btn layui-btn-xs" style="background-color:#23282d" href="/admin/pluginzip/id/{$entity.id}?type=wordpress" target="_blank">下载 WordPress 插件包</a>
+                                    <p>真插件包，<b style="color:#0c0">里面已经填好本站地址和这个播放器的 ID</b>：解压后把 myhk-player 文件夹传到 /wp-content/plugins/ 启用就行。不想装插件也可以直接把代码粘到主题 footer.php。</p>
                                 </blockquote>
                                 <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#467b96">
-                                    <a href="/down/typecho/Typecho-MyhkPlayer-20200712.zip"
-                                       title="Typecho插件,支持Typecho全版本..." target="_blank"><img class="thumb"
-                                                                                              src="/static/images/typecho.png"/></a>
-                                    <a class="layui-btn layui-btn-xs" style="background-color:#467b96"
-                                       href="/down/typecho/Typecho-MyhkPlayer-20200712.zip"
-                                       title="Typecho插件,支持Typecho所有版本..." target="_blank"> [Typecho插件]</a></p>
-                                    <p>支持Typecho全版本...</p>
+                                    <img class="thumb" src="/static/images/typecho.png"/>
+                                    <a class="layui-btn layui-btn-xs" style="background-color:#467b96" href="/admin/pluginzip/id/{$entity.id}?type=typecho" target="_blank">下载 Typecho 嵌入包</a>
+                                    <p>Typecho：包里的代码已经填好本站地址和播放器 ID，按 readme 粘到正在用主题的 footer.php 里 &#60;/body&#62; 之前即可（想只放首页可以用 if ($this->is("index")) 包起来）。</p>
+                                </blockquote>
+                                <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#1da9da">
+                                    <img class="thumb" src="/static/images/emlog.png"/>
+                                    <a class="layui-btn layui-btn-xs" style="background-color:#1da9da" href="/admin/pluginzip/id/{$entity.id}?type=emlog" target="_blank">下载 Emlog 嵌入包</a>
+                                    <p>Emlog：包里的代码已经填好本站地址和播放器 ID，按 readme 粘到模板 footer.php 的 &#60;/body&#62; 之前，再去后台清一次缓存。（官方插件站那个老地址已经 404 打不开了，所以换成这个。）</p>
+                                </blockquote>
+                                <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#3a6ea5">
+                                    <img class="thumb" src="/static/images/zblog.png"/>
+                                    <a class="layui-btn layui-btn-xs" style="background-color:#3a6ea5" href="/admin/pluginzip/id/{$entity.id}?type=zblog" target="_blank">下载 Z-Blog 嵌入包</a>
+                                    <a class="layui-btn layui-btn-xs layui-btn-primary" href="https://app.zblogcn.com/?id=1803" target="_blank" rel="noopener">第三方插件（外站）</a>
+                                    <p>Z-Blog PHP：包里的代码已经填好本站地址和播放器 ID，粘到主题 footer.php 的 &#60;/body&#62; 之前，再清空缓存重编模板。</p>
+                                </blockquote>
+                                <blockquote class="layui-elem-quote layui-quote-nm" style="border-color:#ff5722">
+                                    <img class="thumb" src="/static/images/typecho.png"/>
+                                    <a class="layui-btn layui-btn-xs" style="background-color:#ff5722" href="/admin/pluginzip/id/{$entity.id}?type=common" target="_blank">通用嵌入包（任何网站都能用）</a>
+                                    <p>其他建站程序或自己写的网页用这个，代码已经填好本站地址和播放器 ID（附一个 demo.html 示例），也可以直接在「获取代码」标签里复制代码。</p>
                                 </blockquote>
                             </div>
                         </div>
@@ -472,6 +472,18 @@
 	</script>
 	<script>
 	
+	function copyScriptCode(btn) {
+		var el = document.getElementById("script_code");
+		if (!el) { return; }
+		el.focus();
+		el.select();
+		var ok = false;
+		try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+		if (window.layer && layer.msg) {
+			layer.msg(ok ? "代码已复制，粘到网页 </body> 之前即可" : "复制失败，请手动全选复制", {icon: ok ? 6 : 5, time: 1800});
+		}
+	}
+
 	function delPlayerSongSheet(entity) {
 		$(entity).parent().parent().remove();
 	};

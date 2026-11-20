@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{:config('web.webname')} - {:config('web.title')}</title>
+<meta name="description" content="{:config('web.description')}">
+<meta name="keywords" content="{:config('web.keywords')}">
+<meta name="theme-color" content="#020b06">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#020b06;color:#39ff14;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace;
+  font-size:14.5px;line-height:1.7;padding:26px 0 60px;
+  background-image:repeating-linear-gradient(to bottom,rgba(57,255,20,.045) 0 1px,transparent 1px 3px)}
+a{color:inherit}
+.wrap{width:min(1000px,94vw);margin:0 auto}
+.win{border:1px solid rgba(57,255,20,.45);background:rgba(0,12,4,.72);box-shadow:0 0 60px rgba(57,255,20,.09)}
+.bar{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid rgba(57,255,20,.45);
+  background:rgba(57,255,20,.06);font-size:12.5px}
+.bar .d{width:11px;height:11px;border-radius:50%;border:1px solid rgba(57,255,20,.7)}
+.bar .d:first-child{background:rgba(57,255,20,.55)}
+.bar .t{margin-left:8px;letter-spacing:.06em}
+.bar .r{margin-left:auto;font-size:11px;color:rgba(57,255,20,.6)}
+.body{padding:20px 22px 26px}
+pre{margin:0;font:inherit;white-space:pre-wrap;word-break:break-word}
+.line{margin:0 0 4px}
+.p{color:#7dffa8}
+.p:before{content:'root@lihua:~$ ';color:#39ff14}
+.c{color:rgba(57,255,20,.55)}
+.h{color:#b6ffcf;font-weight:700}
+.w{color:#ffd166}
+.e{color:#ff6b6b}
+.u{text-decoration:underline}
+.blk{margin:10px 0 18px;padding-left:2px}
+.cursor{display:inline-block;width:9px;height:16px;background:#39ff14;vertical-align:-3px;animation:bl 1.05s step-end infinite}
+@keyframes bl{50%{opacity:0}}
+.box{border:1px solid rgba(57,255,20,.5);padding:12px 16px;margin:10px 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+.grid div{display:flex;gap:10px;padding:2px 0}
+.grid .s{color:rgba(57,255,20,.6);width:76px;text-align:right;flex:0 0 auto}
+.grid .n{color:#b6ffcf}
+.lnk{cursor:pointer;border-bottom:1px dashed rgba(57,255,20,.5)}
+.lnk:hover{color:#b6ffcf;background:rgba(57,255,20,.12)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+.chip{border:1px solid rgba(57,255,20,.45);padding:4px 12px;font-size:13px;cursor:pointer;background:rgba(57,255,20,.05)}
+.chip:hover{background:#39ff14;color:#020b06}
+.prompt{display:flex;align-items:center;gap:10px;border-top:1px solid rgba(57,255,20,.35);padding-top:14px;margin-top:6px}
+.prompt span{color:#39ff14;white-space:nowrap}
+.prompt input{flex:1;background:transparent;border:none;outline:none;color:#39ff14;font:inherit;caret-color:#39ff14}
+.themes{display:grid;grid-template-columns:repeat(2,1fr);gap:2px 28px}
+.themes div{display:flex;align-items:center;gap:10px}
+.themes .sw{width:26px;height:10px;border:1px solid rgba(57,255,20,.5);flex:0 0 auto}
+.themes .k{color:rgba(57,255,20,.6);font-size:12.5px}
+.themes .on{color:#ffd166}
+.det{border-top:1px dashed rgba(57,255,20,.3);padding:8px 0}
+.det summary{cursor:pointer;list-style:none}
+.det summary::-webkit-details-marker{display:none}
+.det summary:before{content:'> ';color:rgba(57,255,20,.6)}
+.det[open] summary:before{content:'v '}
+.det p{margin:6px 0 0 18px;color:rgba(182,255,207,.85)}
+.act{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.act a{border:1px solid rgba(57,255,20,.5);padding:7px 18px;text-decoration:none;background:rgba(57,255,20,.06)}
+.act a:hover{background:#39ff14;color:#020b06}
+.act a.main{background:rgba(57,255,20,.85);color:#020b06}
+.act a.main:hover{background:#b6ffcf}
+.foot{margin-top:22px;padding-top:12px;border-top:1px solid rgba(57,255,20,.35);
+  display:flex;flex-wrap:wrap;gap:8px 22px;font-size:12.5px;color:rgba(57,255,20,.62)}
+.foot a:hover{color:#b6ffcf}
+.foot .r{margin-left:auto}
+@media (max-width:720px){
+body{font-size:13px;padding:12px 0 40px}
+.grid,.themes{grid-template-columns:1fr}
+.body{padding:16px 14px 20px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="win">
+  <div class="bar">
+    <span class="d"></span><span class="d"></span><span class="d"></span>
+    <span class="t">root@lihua: ~ — {:config('web.webname')}</span>
+    <span class="r">bash · 80x24</span>
+  </div>
+  <div class="body">
+
+<pre class="blk"><span class="c"># 欢迎使用 {:config('web.webname')} 音乐播放器后台</span>
+<span class="c"># 这是一套开源 HTML5 悬浮音乐播放器 + ThinkPHP 管理后台</span>
+<span class="c"># 下面是一段真实的终端会话，照着敲就行</span></pre>
+
+<pre class="line p">cat /etc/motd</pre>
+<pre class="blk"><span class="h">{:config('web.webname')}</span>
+{:config('web.description')}
+
+本站已运行：<span class="w">{$site.theme_total} 套首页风格</span> · <span class="w">4 个音乐接口</span> · <span class="w">{$data.users} 位注册用户</span> · <span class="w">{$data.songs} 首歌</span></pre>
+
+<pre class="line p">ls -lh /opt/features/</pre>
+<pre class="blk"><div class="grid">
+  <div><span class="s">-rw-r--r--</span><span class="n">多平台解析</span><span class="c">QQ / 网易云 / 酷狗链接直接播</span></div>
+  <div><span class="s">-rw-r--r--</span><span class="n">歌单与歌曲</span><span class="c">无限歌单，导入排序上下架</span></div>
+  <div><span class="s">-rw-r--r--</span><span class="n">播放器短代码</span><span class="c">div + script 贴哪放哪</span></div>
+  <div><span class="s">-rw-r--r--</span><span class="n">首页风格</span><span class="c">{$site.theme_total} 套一点即换</span></div>
+  <div><span class="s">-rw-r--r--</span><span class="n">首页留言板</span><span class="c">不用注册也能留言</span></div>
+  <div><span class="s">-rw-r--r--</span><span class="n">统计与监控</span><span class="c">CPU / 内存 / 负载 / 进程</span></div>
+</div></pre>
+
+<pre class="line p">./play.sh --now</pre>
+<pre class="blk">{if condition="count($site.players) > 0"}
+[<span class="w">OK</span>] 找到播放器：<span class="h">{$site.players.0.name}</span>
+[<span class="w">OK</span>] 正在挂载真实播放器到当前页面 ...
+<div id="music" api="{:get_domain()}"></div>
+<script id="xplayer" src="{:get_domain()}api/PlayerJs/id/{$site.players.0.id}"></script>
+{else /}
+[<span class="w">WARN</span>] 后台还没有创建播放器，下面是预览：
+<div class="box">▶ 正在播放：夜曲 ──────────────── 01:24 / 04:08
+<pre style="margin:6px 0 0;color:rgba(57,255,20,.6)">[████████████░░░░░░░░░░░░░░░░] 34%</pre></div>
+[<span class="c">TIP</span>] 在后台「播放器管理 → 添加播放器」创建后，这里会换成你自己的真实播放器。
+{/if}</pre>
+
+<pre class="line p">theme --list</pre>
+<pre class="blk">可用首页风格（共 <span class="w">{$site.theme_total}</span> 套，后台「主题设置」一键切换）：
+<div class="themes">
+{volist name="site.themes" id="t"}
+  <div><i class="sw" style="background:linear-gradient(135deg,{$t.c1},{$t.c2} 55%,{$t.c3})"></i><span>{$t.name}</span><span class="k">[{$t.key}]{if condition="$t.key == $theme"} <span class="on">&lt;= 当前</span>{/if}</span></div>
+{/volist}
+</div></pre>
+
+<pre class="line p">man quickstart</pre>
+<pre class="blk">QUICKSTART(1)                    上手三步                    QUICKSTART(1)
+
+<span class="h">1. 注册账号</span>
+      打开 /console#/user/act/reg ，用邮箱注册后登录控制面板。
+
+<span class="h">2. 导入歌单</span>
+      在「歌单管理」粘贴平台歌单链接整张导入，或一首首手动添加。
+
+<span class="h">3. 复制短代码</span>
+      创建播放器 → 复制它生成的一段 div + script → 贴到你自己的网站上。
+
+SEE ALSO
+      help(1)  faq(1)  theme(1)</pre>
+
+<pre class="line p">man faq</pre>
+<pre class="blk">
+<details class="det"><summary>这个是免费的吗？</summary><p>注册即可使用，后台可以自由添加歌单、歌曲和播放器；额度与会员规则在「网站设置」里配置。</p></details>
+<details class="det"><summary>支持哪些音乐平台？</summary><p>播放器支持 QQ 音乐、网易云音乐、酷狗音乐等平台的歌曲链接解析，歌单可以整张导入。</p></details>
+<details class="det"><summary>怎么放到我自己的网站上？</summary><p>后台创建一个播放器，复制它生成的短代码（一段 div + script），粘到你网站页面里即可。</p></details>
+<details class="det"><summary>首页风格能换吗？</summary><p>可以，后台「主题设置」里有 {$site.theme_total} 套首页风格，点启用立即生效，登录页和注册页会跟着换配色。</p></details>
+<details class="det"><summary>忘记密码怎么办？</summary><p>登录页有「找回密码」，用注册邮箱收验证码重置；收不到就去「更多设置」检查发信配置。</p></details>
+</pre>
+
+<pre class="line p">./register.sh --free{if condition="count($site.login) > 0"} --already-logged-in{/if}</pre>
+<pre class="blk">{if condition="count($site.login) > 0"}
+[<span class="w">OK</span>] 检测到你已经登录，直接进控制台。
+<div class="act"><a class="main" href="/console">cd /console</a><a href="/?chat=1">cat guestbook.log</a></div>
+{else /}
+[<span class="w">OK</span>] 免费额度充足，可以开始。
+<div class="act"><a class="main" href="/console#/user/act/reg">./register --free</a><a href="/console#/user/act/login">ssh login</a><a href="/help">man help</a></div>
+{/if}</pre>
+
+  <div class="chips">
+    <span class="chip" data-cmd="ls -lh /opt/features/">ls features</span>
+    <span class="chip" data-cmd="theme --list">theme --list</span>
+    <span class="chip" data-cmd="man faq">man faq</span>
+    <span class="chip" data-cmd="whoami">whoami</span>
+    <span class="chip" data-cmd="free -h">free -h</span>
+    <span class="chip" data-cmd="help">help</span>
+  </div>
+
+  <pre class="blk" id="out"></pre>
+
+  <div class="prompt">
+    <span>root@lihua:~$</span>
+    <input id="cmd" type="text" autocomplete="off" spellcheck="false" placeholder="输入命令后回车试试：help / theme --list / whoami">
+    <span class="cursor"></span>
+  </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span>© 2019 - <span id="year"></span> {:config('web.webname')}</span>
+  <a href="/help">help(1)</a>
+  <a href="/?chat=1">guestbook</a>
+  <a href="/console">console</a>
+  <span class="r">STYLE / TERMINAL — exit 0</span>
+</div>
+</div>
+
+<script>
+(function(){
+  var y = document.getElementById('year');
+  if (y) { y.textContent = new Date().getFullYear(); }
+  var out = document.getElementById('out');
+  var input = document.getElementById('cmd');
+  var TOTAL = "{$site.theme_total}";
+  var USERS = "{$data.users}";
+  var SONGS = "{$data.songs}";
+  var CMDS = {
+    "help": ["可用命令：",
+             "  help            显示这份帮助",
+             "  theme --list    列出首页风格",
+             "  whoami          显示当前身份",
+             "  free -h         显示服务器内存占用",
+             "  ls features     列出功能清单",
+             "  man faq         常见问题",
+             "  clear           清屏"],
+    "ls features": ["drwxr-xr-x  多平台解析      QQ / 网易云 / 酷狗",
+                    "drwxr-xr-x  歌单与歌曲      无限歌单，导入排序上下架",
+                    "drwxr-xr-x  播放器短代码    div + script 贴哪放哪",
+                    "drwxr-xr-x  首页风格        " + TOTAL + " 套一点即换",
+                    "drwxr-xr-x  首页留言板      不用注册也能留言",
+                    "drwxr-xr-x  统计与监控      CPU / 内存 / 负载 / 进程"],
+    "ls -lh /opt/features/": ["drwxr-xr-x  多平台解析      QQ / 网易云 / 酷狗",
+                              "drwxr-xr-x  歌单与歌曲      无限歌单，导入排序上下架",
+                              "drwxr-xr-x  播放器短代码    div + script 贴哪放哪",
+                              "drwxr-xr-x  首页风格        " + TOTAL + " 套一点即换",
+                              "drwxr-xr-x  首页留言板      不用注册也能留言",
+                              "drwxr-xr-x  统计与监控      CPU / 内存 / 负载 / 进程"],
+    "theme --list": ["共 " + TOTAL + " 套首页风格，后台「主题设置」一键切换：",
+                     "  极简白 [minimal]    复古杂志 [magazine]",
+                     "  暗黑霓虹 [neon]     赛博终端 [terminal]",
+                     "  玻璃拟态 [glass]    便当网格 [bento]",
+                     "  经典原版 [classic]"],
+    "whoami": ["root —— 也就是你，本站管理员。",
+               "（未登录访客请访问 /console#/user/act/login 用邮箱账号登录）"],
+    "free -h": ["              total        used        free",
+                "Mem:           (实时数据请看后台控制面板)",
+                "注册用户 " + USERS + " 位 · 收录歌曲 " + SONGS + " 首"],
+    "man faq": ["常见问题：",
+                "  Q 这个是免费的吗？    A 注册即可使用，额度在「网站设置」里配。",
+                "  Q 支持哪些平台？      A QQ 音乐 / 网易云 / 酷狗等。",
+                "  Q 怎么放到自己网站？  A 复制播放器短代码粘过去就行。",
+                "  Q 风格能换吗？        A 能，后台「主题设置」共 " + TOTAL + " 套。",
+                "  Q 忘记密码？          A 登录页「找回密码」，邮箱收验证码。"],
+    "clear": []
+  };
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function echo(cmd) {
+    var d = document.createElement("pre");
+    d.className = "line p";
+    d.textContent = cmd;
+    out.appendChild(d);
+  }
+  function print(lines) {
+    var d = document.createElement("pre");
+    d.className = "blk";
+    var html = "";
+    for (var i = 0; i < lines.length; i++) { html += esc(lines[i]) + "\n"; }
+    d.innerHTML = html;
+    out.appendChild(d);
+  }
+  function run(cmd) {
+    var key = cmd.trim();
+    if (!key) { return; }
+    if (key === "clear") { out.innerHTML = ""; return; }
+    echo(key);
+    var found = CMDS[key];
+    if (!found) {
+      for (var k in CMDS) {
+        if (k.indexOf(key) === 0 || key.indexOf(k) === 0) { found = CMDS[k]; break; }
+      }
+    }
+    if (found) { print(found); }
+    else { print(["bash: " + key + ": command not found", "试试 help，或者点上面的命令按钮。"]); }
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+  if (input) {
+    input.addEventListener("keydown", function(e){
+      if (e.key === "Enter" || e.keyCode === 13) { run(input.value); input.value = ""; }
+    });
+  }
+  var chips = document.querySelectorAll(".chip");
+  for (var i = 0; i < chips.length; i++) {
+    chips[i].addEventListener("click", function(){
+      run(this.getAttribute("data-cmd"));
+      if (input) { input.focus(); }
+    });
+  }
+})();
+</script>
+</body>
+</html>

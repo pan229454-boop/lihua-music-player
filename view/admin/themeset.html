@@ -1,0 +1,141 @@
+<title>主题设置</title>
+
+<style>
+  .theme-card{border:2px solid #eef0f4;border-radius:10px;overflow:hidden;background:#fff;transition:.2s;margin-bottom:18px}
+  .theme-card:hover{box-shadow:0 10px 26px rgba(0,0,0,.09);transform:translateY(-2px)}
+  .theme-card.active{border-color:#1e9fff;box-shadow:0 10px 26px rgba(30,159,255,.18)}
+  .theme-thumb{height:132px;position:relative;display:flex;align-items:center;justify-content:center}
+  .theme-thumb:after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.04)}
+  .thumb-mock{position:relative;z-index:1;width:76%;height:62%;border-radius:6px;padding:9px 10px;background:rgba(255,255,255,.72);display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 18px rgba(0,0,0,.16)}
+  .thumb-mock i{display:block;height:5px;border-radius:3px;background:rgba(0,0,0,.35)}
+  .thumb-mock i:nth-child(1){width:62%;height:8px;background:rgba(0,0,0,.6)}
+  .thumb-mock i:nth-child(3){width:44%}
+  .thumb-mock i:nth-child(4){width:80%;opacity:.5}
+  .mock-cols{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .mock-cols i{width:100%!important;height:100%!important;background:rgba(0,0,0,.22)!important;border-radius:3px}
+  .mock-cols i:nth-child(1){grid-column:span 2;height:24px!important;background:rgba(0,0,0,.5)!important}
+  .mock-term{background:#04120a;border:1px solid rgba(57,255,20,.55)}
+  .mock-term i{background:#39ff14!important;width:100%!important}
+  .mock-term i:nth-child(1){height:8px;background:#39ff14!important}
+  .mock-glow{background:rgba(255,255,255,.14);border:1px solid rgba(0,229,255,.65);box-shadow:0 0 18px rgba(0,229,255,.45)}
+  .mock-glow i{background:rgba(0,229,255,.85)!important;width:100%!important}
+  .mock-glass{background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.75)}
+  .mock-glass i{background:rgba(255,255,255,.95)!important;border-radius:8px!important;width:100%!important}
+  .mock-bento{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:5px}
+  .mock-bento i{width:100%!important;height:100%!important;border-radius:6px!important;background:rgba(255,255,255,.9)!important}
+  .mock-bento i:nth-child(1){grid-column:span 2;background:rgba(255,255,255,.97)!important}
+  .theme-info{padding:14px 16px 16px}
+  .theme-info h3{margin:0 0 6px;font-size:16px;font-weight:700;color:#222}
+  .theme-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:400;color:#999;background:#f4f5f7;vertical-align:2px}
+  .theme-tag.on{color:#fff;background:#1e9fff}
+  .theme-info p{margin:0 0 12px;color:#888;font-size:13px;line-height:1.6;min-height:42px}
+  .theme-info .theme-key{color:#bbb;font-size:12px;margin-left:4px}
+</style>
+
+<div class="layui-fluid">
+  <div class="layui-row">
+    <div class="layui-col-md12">
+      <div class="layui-card">
+        <div class="layui-card-header">首页主题<span class="theme-key">共 {$total} 套，点击「启用」立即生效（前台刷新即可看到）</span></div>
+        <div class="layui-card-body" pad15>
+          <div class="layui-row layui-col-space15">
+            {volist name="themes" id="t"}
+            <div class="layui-col-md4 layui-col-sm6">
+              <div class="{$t.cardclass}">
+                <div class="theme-thumb" style="background:linear-gradient(135deg,{$t.c1} 0%,{$t.c2} 52%,{$t.c3} 100%)">
+                  <div class="{$t.mockclass}"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                </div>
+                <div class="theme-info">
+                  <h3>{$t.name}<span class="{$t.tagclass}">{$t.status}</span></h3>
+                  <p>{$t.desc}</p>
+                  <div>
+                    <a class="layui-btn layui-btn-primary layui-btn-sm" href="{$t.preview}" target="_blank" rel="noopener">
+                      <i class="layui-icon layui-icon-form"></i> 预览
+                    </a>
+                    <button class="layui-btn layui-btn-sm {$t.btnclass}" data-key="{$t.key}" data-name="{$t.name}">{$t.btntext}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/volist}
+          </div>
+          <div class="layui-word-aux" style="color:#999;margin-top:6px">
+            说明：预览是在新窗口打开带 ?theme=键名 的首页，只有管理员登录状态下才会按预览参数渲染；启用后所有访客看到的都是你选的这一套。
+          </div>
+        </div>
+      </div>
+      <div class="layui-card" style="margin-top:16px">
+        <div class="layui-card-header">登录 / 注册 / 找回密码页</div>
+        <div class="layui-card-body" pad15>
+          <div class="layui-form" lay-filter="lhauth">
+            <div class="layui-form-item">
+              <label class="layui-form-label">配色</label>
+              <div class="layui-input-block">
+                <input type="checkbox" name="auth_theme_follow" lay-skin="switch" lay-text="跟随首页主题|不跟随" {:config('web.auth_theme_follow') === '0' ? '' : 'checked'}>
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <div class="layui-input-block">
+                <button class="layui-btn" id="lhAuthSave" type="button">保存</button>
+                <span style="margin-left:12px;color:#999;font-size:12px;">开启后，登录、注册、找回密码页会和首页主题用同一套配色（背景、卡片、按钮、字体一起换）；关掉则回到 layui 原来的样式。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+layui.use(['admin', 'form'], function(){
+  var $ = layui.$;
+
+  function tip(msg){
+    if (layui.layer && layui.layer.msg) { layui.layer.msg(msg); } else { alert(msg); }
+  }
+
+  if (layui.form && layui.form.render) { layui.form.render(); }
+
+  $('#lhAuthSave').on('click', function(){
+    var on = $('input[name=auth_theme_follow]').prop('checked') ? '1' : '0';
+    $.ajax({
+      url: "/AdminAjax/config",
+      data: { auth_theme_follow: on },
+      type: "Post",
+      dataType: "json",
+      success: function(data){
+        tip(data.code == 0 ? '已保存，登录页马上生效' : (data.msg || data.message || '保存失败'));
+      },
+      error: function(){ tip('请求失败，请检查登录状态'); }
+    });
+  });
+
+  $('.theme-info button[data-key]').on('click', function(){
+    var btn = $(this);
+    if (btn.hasClass('layui-btn-disabled')) { tip('这套主题正在使用中'); return; }
+    var key = btn.data('key');
+    var name = btn.data('name');
+    btn.addClass('layui-btn-disabled').text('切换中...');
+    $.ajax({
+      url: "/AdminAjax/config",
+      data: { home_theme: key },
+      type: "Post",
+      dataType: "json",
+      success: function(data){
+        if (data.code == 0) {
+          tip('已切换到「' + name + '」主题');
+          setTimeout(function(){ location.reload(); }, 700);
+        } else {
+          tip(data.msg || data.message || '切换失败');
+          btn.removeClass('layui-btn-disabled').text('启用');
+        }
+      },
+      error: function(){
+        tip('请求失败，请检查登录状态');
+        btn.removeClass('layui-btn-disabled').text('启用');
+      }
+    });
+  });
+});
+</script>

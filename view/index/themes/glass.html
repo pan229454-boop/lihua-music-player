@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{:config('web.webname')} - {:config('web.title')}</title>
+<meta name="description" content="{:config('web.description')}">
+<meta name="keywords" content="{:config('web.keywords')}">
+<meta name="theme-color" content="#e9ecff">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;color:#232447;overflow-x:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;font-size:16px;line-height:1.72}
+a{color:inherit;text-decoration:none}
+.bgs{position:fixed;inset:0;z-index:0;overflow:hidden;background:linear-gradient(140deg,#eef1ff,#e6ecff 45%,#f3e9ff)}
+.bgs i{position:absolute;display:block;border-radius:50%;filter:blur(70px);opacity:.62}
+.bgs i:nth-child(1){width:46vw;height:46vw;left:-8vw;top:-6vw;background:#7c5cff;animation:fl1 22s ease-in-out infinite}
+.bgs i:nth-child(2){width:40vw;height:40vw;right:-6vw;top:12vh;background:#22d3ee;animation:fl2 26s ease-in-out infinite}
+.bgs i:nth-child(3){width:38vw;height:38vw;left:22vw;bottom:-14vw;background:#ff7ac6;animation:fl3 30s ease-in-out infinite}
+@keyframes fl1{50%{transform:translate(6vw,4vh) scale(1.12)}}
+@keyframes fl2{50%{transform:translate(-5vw,6vh) scale(1.1)}}
+@keyframes fl3{50%{transform:translate(4vw,-5vh) scale(1.14)}}
+.wrap{position:relative;z-index:2;width:min(1180px,92vw);margin:0 auto}
+.glass{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.75);
+  -webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);
+  box-shadow:0 18px 50px rgba(60,70,140,.14);border-radius:24px}
+/* 左上悬浮标签 */
+.tag{position:fixed;left:max(16px,4vw);top:20px;z-index:40;display:flex;align-items:center;gap:10px;
+  padding:10px 18px;border-radius:100px;font-size:13.5px;font-weight:600;background:rgba(255,255,255,.5);
+  border:1px solid rgba(255,255,255,.7);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.tag i{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,#7c5cff,#22d3ee)}
+/* 底部 Dock */
+.dock{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:50;display:flex;gap:6px;
+  padding:10px 12px;border-radius:26px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.8);
+  -webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
+  box-shadow:0 20px 50px rgba(60,70,140,.22);max-width:92vw;overflow-x:auto}
+.dock a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 14px;border-radius:16px;
+  font-size:11.5px;color:#40416b;transition:.25s;white-space:nowrap}
+.dock a b{font-size:18px;font-weight:400;line-height:1}
+.dock a:hover{background:rgba(255,255,255,.85);transform:translateY(-6px) scale(1.06)}
+.dock a.hot{background:linear-gradient(135deg,#7c5cff,#22d3ee);color:#fff}
+body{padding:0 0 130px}
+/* 英雄区 */
+.hero{padding:120px 0 40px;display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:center}
+.hero-card{padding:42px 44px}
+.kicker{margin:0 0 18px;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#6b5bd2}
+.hero h1{margin:0;font-size:clamp(34px,5.6vw,62px);line-height:1.02;letter-spacing:-.03em;font-weight:800}
+.hero p.lead{margin:20px 0 0;color:#4a4b74;font-size:17px;max-width:44ch}
+.cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+.btn{display:inline-block;padding:13px 26px;border-radius:100px;font-size:14.5px;font-weight:600;transition:.25s}
+.btn.solid{background:linear-gradient(135deg,#7c5cff,#22d3ee);color:#fff;box-shadow:0 12px 30px rgba(124,92,255,.35)}
+.btn.solid:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(124,92,255,.45)}
+.btn.ghost{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.9);color:#3a3b66}
+.btn.ghost:hover{background:#fff}
+/* 悬浮变动格子 */
+.cluster{position:relative;height:430px}
+.f{position:absolute;padding:22px 24px;border-radius:22px;transition:.4s}
+.f b{display:block;font-size:36px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.f span{display:block;margin-top:6px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#5c5d86}
+.f1{left:0;top:8%;width:52%;transform:rotate(-2.2deg)}
+.f2{right:2%;top:0;width:44%;transform:rotate(2.6deg)}
+.f3{left:6%;bottom:6%;width:46%;transform:rotate(1.6deg)}
+.f4{right:0;bottom:16%;width:50%;transform:rotate(-2deg)}
+.f:hover{transform:rotate(0) translateY(-8px) scale(1.03)}
+/* 章节 */
+.sec{padding:56px 0}
+.sec-h{display:flex;align-items:baseline;gap:16px;margin-bottom:24px}
+.sec-h h2{margin:0;font-size:clamp(22px,3.4vw,32px);letter-spacing:-.02em}
+.sec-h p{margin:0;font-size:14.5px;color:#5c5d86}
+/* 播放条 */
+.np{display:grid;grid-template-columns:96px 1fr auto;gap:22px;align-items:center;padding:20px 26px}
+.np .cover{width:96px;height:96px;border-radius:18px;background:linear-gradient(135deg,#7c5cff,#22d3ee);position:relative;overflow:hidden}
+.np .cover:after{content:'♪';position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:rgba(255,255,255,.92)}
+.np h3{margin:0 0 4px;font-size:20px}
+.np .by{color:#5c5d86;font-size:14px}
+.bar{height:6px;border-radius:100px;background:rgba(255,255,255,.75);margin-top:14px;overflow:hidden}
+.bar i{display:block;height:100%;width:32%;border-radius:100px;background:linear-gradient(90deg,#7c5cff,#22d3ee);animation:mv 26s linear infinite}
+@keyframes mv{from{width:5%}to{width:96%}}
+.np .acts{display:flex;gap:10px}
+.np .acts a{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.75);font-size:16px}
+.np .acts a:hover{background:#7c5cff;color:#fff}
+/* 瀑布流功能 */
+.masonry{column-count:3;column-gap:18px}
+.mcard{break-inside:avoid;margin:0 0 18px;padding:24px 26px;border-radius:22px}
+.mcard b{display:block;font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:#6b5bd2;margin-bottom:10px}
+.mcard h3{margin:0 0 8px;font-size:18.5px}
+.mcard p{margin:0;color:#4a4b74;font-size:14.8px}
+/* 主题条 */
+.rail-x{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 16px;scroll-snap-type:x mandatory}
+.chip{flex:0 0 auto;scroll-snap-align:start;display:flex;align-items:center;gap:12px;padding:14px 22px;border-radius:100px;font-size:14.5px}
+.chip i{width:30px;height:14px;border-radius:100px;display:block}
+.chip .on{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#6b5bd2}
+/* 步骤 */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.step{padding:28px 26px;border-radius:22px;position:relative}
+.step b{font-size:13px;letter-spacing:.2em;color:#6b5bd2}
+.step h3{margin:10px 0 6px;font-size:19px}
+.step p{margin:0;color:#4a4b74;font-size:14.8px}
+/* 问答 */
+.faq details{padding:16px 22px;border-radius:18px;margin-bottom:12px;background:rgba(255,255,255,.5);
+  border:1px solid rgba(255,255,255,.75);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.faq summary{cursor:pointer;list-style:none;font-size:16.5px;font-weight:600}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary:after{content:'＋';float:right;color:#6b5bd2;font-weight:400}
+.faq details[open] summary:after{content:'－'}
+.faq p{margin:12px 0 0;color:#4a4b74;font-size:15px}
+/* 结尾 */
+.end{padding:44px;border-radius:26px;text-align:center;margin-bottom:20px}
+.end h2{margin:0 0 12px;font-size:clamp(26px,4.4vw,40px);letter-spacing:-.03em}
+.end p{margin:0 0 24px;color:#4a4b74}
+.foot{position:relative;z-index:2;width:min(1180px,92vw);margin:6px auto 0;padding:16px 20px;border-radius:20px;
+  display:flex;flex-wrap:wrap;gap:10px 24px;font-size:12.5px;color:#5c5d86;background:rgba(255,255,255,.45);
+  border:1px solid rgba(255,255,255,.7);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.foot a:hover{color:#3a3b66;text-decoration:underline}
+.foot .r{margin-left:auto}
+.rv{opacity:0;transform:translateY(18px);transition:.7s ease}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}.bgs i{animation:none}.bar i{animation:none}}
+@media (max-width:1000px){
+.hero{grid-template-columns:1fr;gap:26px;padding-top:96px}
+.cluster{height:auto;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f{position:static;width:auto!important;transform:none!important}
+.masonry{column-count:2}
+}
+@media (max-width:680px){
+.masonry{column-count:1}
+.steps{grid-template-columns:1fr}
+.np{grid-template-columns:64px 1fr;gap:16px}
+.np .cover{width:64px;height:64px}
+.np .acts{grid-column:1/-1;justify-content:center}
+.hero-card{padding:30px 24px}
+.dock a{padding:8px 10px}
+}
+</style>
+</head>
+<body>
+<div class="bgs"><i></i><i></i><i></i></div>
+
+<div class="tag"><i></i>{:config('web.webname')}</div>
+
+<nav class="dock">
+  <a href="#top"><b>◍</b>首页</a>
+  <a href="#player"><b>▶</b>播放器</a>
+  <a href="#features"><b>✦</b>功能</a>
+  <a href="#themes"><b>◐</b>风格</a>
+  <a href="#faq"><b>?</b>问答</a>
+  {if condition="count($site.login) > 0"}
+  <a class="hot" href="/console"><b>⌘</b>控制台</a>
+  {else /}
+  <a href="/console#/user/act/login"><b>→</b>登录</a>
+  <a class="hot" href="/console#/user/act/reg"><b>+</b>注册</a>
+  {/if}
+</nav>
+
+<main class="wrap" id="top">
+
+  <section class="hero">
+    <div class="glass hero-card">
+      <p class="kicker">悬浮播放器 · 开源后台</p>
+      <h1>音乐浮在页面上，<br>像一个好看的小组件</h1>
+      <p class="lead">{:config('web.description')} 后台管歌单和外观，前台贴一段短代码就行。</p>
+      <div class="cta">
+        <a class="btn solid" href="/console#/user/act/reg">免费注册</a>
+        <a class="btn ghost" href="#player">看看播放条</a>
+      </div>
+    </div>
+    <div class="cluster">
+      <div class="glass f f1"><b>{$site.theme_total}</b><span>首页风格</span></div>
+      <div class="glass f f2"><b>4</b><span>音乐接口</span></div>
+      <div class="glass f f3"><b>{$data.users}</b><span>注册用户</span></div>
+      <div class="glass f f4"><b>{$data.songs}</b><span>收录歌曲</span></div>
+    </div>
+  </section>
+
+  <section class="sec" id="player">
+    <div class="sec-h"><h2>正在播放</h2><p>后台一处配置，前端处处生效</p></div>
+    <div class="glass np">
+      <div class="cover"></div>
+      <div>
+        {if condition="count($site.players) > 0"}
+        <h3>{$site.players.0.name}</h3>
+        <p class="by">后台里的真实播放器，滚动到位就能播。</p>
+        {else /}
+        <h3>夜曲</h3>
+        <p class="by">播放器预览 · 在后台创建播放器后会换成你自己的</p>
+        {/if}
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="acts">
+        <a href="#player">⏮</a><a href="#player">▶</a><a href="#player">⏭</a>
+      </div>
+    </div>
+    {if condition="count($site.players) > 0"}
+    <div style="margin-top:14px"><div id="music" api="{:get_domain()}"></div></div>
+    <script id="xplayer" src="{:get_domain()}api/PlayerJs/id/{$site.players.0.id}"></script>
+    {/if}
+  </section>
+
+  <section class="sec" id="features">
+    <div class="sec-h"><h2>功能</h2><p>解析 · 管理 · 播放 · 统计</p></div>
+    <div class="masonry">
+      <div class="glass mcard"><b>Parse</b><h3>多平台解析</h3><p>QQ 音乐、网易云、酷狗等平台的歌曲链接直接解析播放，歌单可以整张导入，也可以手动补歌。</p></div>
+      <div class="glass mcard"><b>Manage</b><h3>歌单与歌曲管理</h3><p>无限歌单、无限歌曲，后台导入、排序、上下架，所有改动实时生效，不需要重新部署。</p></div>
+      <div class="glass mcard"><b>Embed</b><h3>播放器短代码</h3><p>创建播放器即得一段 div + script，贴到任何网站上都能放歌，手机端一样自适应。</p></div>
+      <div class="glass mcard"><b>Theme</b><h3>首页风格随时换</h3><p>{$site.theme_total} 套首页风格一点即换，登录页、注册页的配色跟着当前主题一起走。</p></div>
+      <div class="glass mcard"><b>Guestbook</b><h3>首页留言板</h3><p>访客不用注册就能留言，有新留言按钮冒红点，后台可以删留言、也可以整体关掉。</p></div>
+      <div class="glass mcard"><b>Monitor</b><h3>统计与服务器状态</h3><p>控制面板实时显示 CPU、内存、负载曲线；服务器状态能按进程查看，还能结束掉多余进程。</p></div>
+    </div>
+  </section>
+
+  <section class="sec" id="themes">
+    <div class="sec-h"><h2>风格</h2><p>左右滑动看看 · 后台一键启用</p></div>
+    <div class="rail-x">
+      {volist name="site.themes" id="t"}
+      <a class="glass chip" href="/console#/user/act/login">
+        <i style="background:linear-gradient(135deg,{$t.c1},{$t.c2} 55%,{$t.c3})"></i>
+        <span>{$t.name}{if condition="$t.key == $theme"} <span class="on">使用中</span>{/if}</span>
+      </a>
+      {/volist}
+    </div>
+  </section>
+
+  <section class="sec" id="how">
+    <div class="sec-h"><h2>三步上手</h2><p>注册 → 导歌 → 贴代码</p></div>
+    <div class="steps">
+      <div class="glass step"><b>STEP 1</b><h3>注册账号</h3><p>邮箱注册并登录，进入控制面板。</p></div>
+      <div class="glass step"><b>STEP 2</b><h3>导入歌单</h3><p>粘贴平台歌单链接整张导入，或手动加歌。</p></div>
+      <div class="glass step"><b>STEP 3</b><h3>复制短代码</h3><p>创建播放器，把短代码贴到你的页面上。</p></div>
+    </div>
+  </section>
+
+  <section class="sec faq" id="faq">
+    <div class="sec-h"><h2>常见问题</h2><p>没找到答案可以在右下角留言板问</p></div>
+    <details><summary>这个是免费的吗？</summary><p>注册即可使用，后台可以自由添加歌单、歌曲和播放器，额度与会员规则在「网站设置」里配置。</p></details>
+    <details><summary>支持哪些音乐平台？</summary><p>播放器支持 QQ 音乐、网易云音乐、酷狗音乐等平台的歌曲链接解析，歌单也可以整张导入。</p></details>
+    <details><summary>怎么放到我自己的网站上？</summary><p>后台创建一个播放器，复制它生成的短代码（一段 div + script），粘到你网站页面里即可。</p></details>
+    <details><summary>首页风格能换吗？</summary><p>可以，后台「主题设置」里有 {$site.theme_total} 套首页风格，点启用立即生效，登录页和注册页会跟着换配色。</p></details>
+    <details><summary>忘记密码怎么办？</summary><p>登录页有「找回密码」，用注册邮箱收验证码重置；收不到就去「更多设置」检查发信配置。</p></details>
+  </section>
+
+  <section class="glass end">
+    <h2>给自己一个悬浮播放器</h2>
+    <p>免费使用 · 后台可视化管理 · 风格随时换</p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn solid" href="/console#/user/act/reg">免费注册</a>
+      <a class="btn ghost" href="/console#/user/act/login">登录后台</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>© 2019 - <span id="year"></span> {:config('web.webname')}</span>
+  <a href="#themes">风格</a>
+  <a href="/?chat=1">留言板</a>
+  <a href="/help">帮助文档</a>
+  <span class="r">STYLE / GLASS</span>
+</footer>
+
+<script>
+(function(){
+  var y = document.getElementById('year');
+  if (y) { y.textContent = new Date().getFullYear(); }
+  var els = document.querySelectorAll('.sec, .hero-card, .cluster .f, .step, .end, .faq details');
+  for (var i = 0; i < els.length; i++) { els[i].className += ' rv'; }
+  if (window.IntersectionObserver) {
+    var io = new IntersectionObserver(function(en){
+      for (var i = 0; i < en.length; i++) {
+        if (en[i].isIntersecting) { en[i].target.className += ' in'; io.unobserve(en[i].target); }
+      }
+    }, { threshold: 0.06 });
+    for (var j = 0; j < els.length; j++) { io.observe(els[j]); }
+  } else {
+    for (var k = 0; k < els.length; k++) { els[k].className += ' in'; }
+  }
+  var chips = document.querySelectorAll('.rail-x .chip');
+  for (var m = 0; m < chips.length; m++) {
+    chips[m].addEventListener('click', function(e){
+      if (this.getAttribute('href') === '/console#/user/act/login' && !e.metaKey) {
+        this.style.transform = 'scale(.96)';
+        var self = this;
+        setTimeout(function(){ self.style.transform = ''; }, 140);
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

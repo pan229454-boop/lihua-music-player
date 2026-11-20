@@ -5,6 +5,11 @@ namespace {
 namespace app\controller {
     class Api extends Common {
         public function clearCache() {
+            // 修复：原为匿名可调用，任何人可反复清空全站缓存
+            $check = \app\model\Users::checkLogin();
+            if ($check !== null) {
+                return json(['code' => -1, 'msg' => $check['msg']]);
+            }
             if (\think\facade\Cache::clear()) {
                 $result = ['code' => 0, 'msg' => '成功清除所有缓存'];
             } else {
@@ -28,7 +33,7 @@ namespace app\controller {
             \app\model\Player::where('id', '=', $id)->data($data)->update();
             $data2 = ['player_id' => $id, 'user_id' => $player['user_id'], 'side' => 'ios', 'create_time' => date('Y-m-d H:i:s')];
             \app\model\Plays::add($data2);
-            $cache = \think\facade\Cache::get('info_sources_v1_' . $id);
+            $cache = \think\facade\Cache::get('info' . $id);
             if ($cache) {
                 return response($act['jsoncallback'] . '(' . $cache . ')');
             }
@@ -39,13 +44,13 @@ namespace app\controller {
                 $songs = \app\model\Song::where('song_sheet_id', $item['id'])->order('taxis asc')->select();
                 $songlists = [];
                 foreach ($songs as $key2 => $item2) {
-                    $songlists[$key2] = ['music_source' => $item2['music_source'] ?? 'legacy', 'type' => $item2['type'], 'id' => $item2['song_id'], 'name' => $item2['name'], 'cover' => $item2['album_cover'], 'artist' => $item2['artist_name'], 'album' => $item2['album_name'], 'url' => $item2['location'], 'lyric' => $item2['lyric']];
+                    $songlists[$key2] = ['type' => $item2['type'], 'id' => $item2['song_id'], 'name' => $item2['name'], 'cover' => $item2['album_cover'], 'artist' => $item2['artist_name'], 'album' => $item2['album_name'], 'url' => $item2['location'], 'lyric' => $item2['lyric']];
                 }
                 $songSheetList[$key] = ['SheetName' => $item['name'], 'author' => $item['author'], 'songs' => $songlists];
             }
             $result = ['playerName' => $player['name'], 'showGreeting' => $player['show_greeting'], 'switchopen' => $player['switchopen'], 'time' => $player['time'], 'showLrc' => $player['show_lrc'], 'showMsg' => $player['showmsg'], 'defaultAlbum' => $player['default_album'], 'randomPlayer' => $player['random_player'], 'defaultVolume' => $player['default_volume'], 'greeting' => $player['greeting'], 'autoPlayer' => $player['auto_player'], 'Sheetlist' => $songSheetList, 'showNotes' => $player['show_notes']];
             $result = json_encode($result);
-            \think\facade\Cache::set('info_sources_v1_' . $id, $result);
+            \think\facade\Cache::set('info' . $id, $result);
             return response($act['jsoncallback'] . '(' . $result . ')');
         }
         public function musicUrl() {
@@ -53,40 +58,40 @@ namespace app\controller {
             if (!(isset($data['sign']) && isset($data['songId']) && isset($data['type']) && isset($data['id']))) {
                 return abort(400, 'Invalid sign');
             }
-            try {
-                $sourceId = $data['music_source'] ?? 'legacy';
-                $source = \PHPMailer\MusicSourceRegistry::get($sourceId);
-                if ($source['provider'] === 'shymusic') return redirect((new \PHPMailer\MusicSourceService($sourceId))->audio($data['type'], $data['songId']));
-            } catch (\Throwable $e) {
-                return response('音乐接口不可用，请联系站点管理员检查配置', 502);
+            $url = '';
+            // 开关关闭、或者授权QQ/skey 没填全时，跳过授权验证，直接取歌
+            if (auth_qq_ready()) {
+                $queryParams = http_build_query(['qq' => \think\facade\Config::get('api.qq'), 'skey' => \think\facade\Config::get('api.skey'), 'demo' => $_SERVER['HTTP_HOST']]);
+                // 换成带超时的 curl，上游异常时返回提示而不是 500
+                $response = curl('https://auth.cenguigui.cn/MusicApi.php?' . $queryParams, ['ctime' => 5, 'rtime' => 8]);
+                if (empty($response)) {
+                    die('请求失败，请稍后再试。');
+                }
+                $responseData = json_decode($response, true);
+                if (!is_array($responseData)) {
+                    die('授权服务返回异常，请稍后再试。');
+                }
+                if ($responseData['status'] == 'error' && $responseData['message'] == '域名未授权') {
+                    $url = 'https://cdn.cenguigui.cn/Api/tts/2024-12-14-185658_111237.mp3';
+                } elseif ($responseData['status'] == 'error' && $responseData['message'] == 'skey有误') {
+                    $url = 'https://cdn.cenguigui.cn/Api/tts/2024-12-14-190011_184063.mp3';
+                }
             }
-            $skipCheck = false;
-            try {
-                $authSettings = \PHPMailer\ServerAuthSettings::read();
-                $skipCheck = ($authSettings['skip_check'] ?? false) === true;
-            } catch (\Throwable $e) {
-                return abort(503, '服务器授权配置无法读取');
-            }
-            $responseData = [];
-            if (!$skipCheck) {
-            $queryParams = http_build_query(['qq' => \think\facade\Config::get('api.qq'), 'skey' => \think\facade\Config::get('api.skey'), 'demo' => $_SERVER['HTTP_HOST']]);
-            $response = file_get_contents('https://auth.cenguigui.cn/MusicApi.php?' . $queryParams);
-            if ($response === false) {
-                die('请求失败，请稍后再试。');
-            }
-            $responseData = json_decode($response, true);
-            }
-            if (!$skipCheck && ($responseData['status'] ?? null) == 'error' && ($responseData['message'] ?? null) == '域名未授权') {
-                $url = 'https://cdn.cenguigui.cn/Api/tts/2024-12-14-185658_111237.mp3';
-            } elseif (!$skipCheck && ($responseData['status'] ?? null) == 'error' && ($responseData['message'] ?? null) == 'skey有误') {
-                $url = 'https://cdn.cenguigui.cn/Api/tts/2024-12-14-190011_184063.mp3';
-            } else {
+            if ($url === '') {
+                // 授权通过（或跳过授权验证）后，去音乐接口取真实播放地址
                 $type = $data['type'];
                 $id = $data['songId'];
-                $json = send_get(\think\facade\Config::get('api.music') . '?input=' . $id . '&filter=id&type=' . $type . '&page=1&url=' . $_SERVER['SERVER_NAME']);
+                $json = send_get(music_api_url() . '?input=' . $id . '&filter=id&type=' . $type . '&page=1&url=' . $_SERVER['SERVER_NAME']);
                 $musicData = json_decode($json, true);
                 $url = $musicData['url'] ?? '';
-                if (!is_string($url) || !filter_var($url,FILTER_VALIDATE_URL) || !in_array(parse_url($url,PHP_URL_SCHEME),['http','https'],true)) return response('原接口未返回有效音频地址',502);
+				if ($url === '') {
+					$vkeysAlt = music_vkeys_resolve($type, $id);
+					if ($vkeysAlt) { $url = $vkeysAlt['url']; }
+				}
+            }
+            // 修复：原实现可能 redirect(null) 或跳到非预期地址
+            if (!is_safe_remote_url($url)) {
+                die('音乐地址不可用：' . music_api_host() . ' 没有返回播放地址（内置免费接口也没取到），请稍后再试。');
             }
             return redirect($url);
         }
@@ -125,62 +130,90 @@ namespace app\controller {
         }
         public function musicLyric() {
             $data = input('get.');
-            if (($data['type'] ?? '') !== 'local') {
-                try {
-                    $sourceId = $data['music_source'] ?? 'legacy';
-                    $source = \PHPMailer\MusicSourceRegistry::get($sourceId);
-                    if ($source['provider'] === 'shymusic') {
-                        $callback = $data['jsoncallback'] ?? '';
-                        if (!is_string($callback) || !preg_match('/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/D', $callback)) return response('Invalid callback', 400);
-                        $result = ['file' => 'null', 'time' => date('Y-m-d H:i:s'), 'type' => 'lrc', 'txt' => (new \PHPMailer\MusicSourceService($sourceId))->lyric($data['type'] ?? '', $data['songId'] ?? '')];
-                        return response($callback . '(' . json_encode($result, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ')')->contentType('application/javascript');
-                    }
-                } catch (\Throwable $e) {
-                    return response('音乐歌词接口不可用，请联系站点管理员检查配置', 502);
-                }
-            }
-            $cache = \think\facade\Cache::get('musicLyric' . $data['type'] . $data['id']);
-            if ($data['type'] == 'local') {
-                $id = $data['id'];
-                $url = $data['url'];
-                $result = send_get($url);
-                $result = ['file' => 'null', 'time' => date('Y-m-d h:i:s', time()), 'type' => 'lrc', 'txt' => $result];
+            $cache = \think\facade\Cache::get('musicLyric' . ($data['type'] ?? '') . ($data['id'] ?? ''));
+            if (($data['type'] ?? '') == 'local') {
+                $id = $data['id'] ?? '';
+                $url = $data['url'] ?? '';
+                // 修复：type=local 原来可传 file:// 等地址读取本地文件/探测内网，现仅允许公网 http/https
+                $result = is_safe_remote_url($url) ? send_get($url) : '';
+                $result = ['file' => 'null', 'time' => date('Y-m-d H:i:s', time()), 'type' => 'lrc', 'txt' => $result];
             } else {
-                $player = \app\model\Player::where('id', '=', $data['id'])->find();
+                $player = \app\model\Player::where('id', '=', $data['id'] ?? '')->find();
+                if (!$player) {
+                    // 修复：播放器不存在时原实现对 null 取下标，直接 500
+                    $empty = json_encode(['file' => 'null', 'time' => date('Y-m-d H:i:s', time()), 'type' => 'lrc', 'txt' => '']);
+                    return response(($data['jsoncallback'] ?? 'callback') . '(' . $empty . ')');
+                }
                 $userInfo = \app\model\Users::where('uid', '=', $player['user_id'])->find();
+                if (!$userInfo) {
+                    $userInfo = ['power' => -1];
+                }
                 if ($userInfo['power'] == 2) {
-                    $json = send_get(\think\facade\Config::get('api.music') . '?input=' . $data['songId'] . '&filter=id&type=' . $data['type'] . '&page=1&url=' . $_SERVER['SERVER_NAME']);
-                    $result = json_decode($json, true);
-                    $result = ['file' => 'null', 'time' => date('Y-m-d h:i:s', time()), 'type' => 'lrc', 'txt' => $result['lrc']];
+                    $json = send_get(music_api_url() . '?input=' . $data['songId'] . '&filter=id&type=' . $data['type'] . '&page=1&url=' . $_SERVER['SERVER_NAME']);
+                    $apiData = json_decode($json, true);
+
+                    if (!is_array($apiData)) {
+
+                        // 修复：上游不可用时不再对 null 取下标导致 500，返回空歌词
+
+                        $apiData = [];
+
+                    }
+
+                    $result = ['file' => 'null', 'time' => date('Y-m-d H:i:s', time()), 'type' => 'lrc', 'txt' => $apiData['lrc'] ?? ''];
                 } elseif ($data['type'] == 'kugou') {
                     $ksctext = send_get(\think\facade\Config::get('api.getksc') . '?s=' . $data['songId']);
                     if ($ksctext == '') {
-                        $json = send_get(\think\facade\Config::get('api.music') . '?input=' . $data['songId'] . '&filter=id&type=' . $data['type'] . '&page=1&url=' . $_SERVER['SERVER_NAME']);
-                        $result = json_decode($json, true);
-                        $result = ['file' => 'null', 'time' => date('Y-m-d h:i:s', time()), 'type' => 'lrc', 'txt' => $result['lrc']];
+                        $json = send_get(music_api_url() . '?input=' . $data['songId'] . '&filter=id&type=' . $data['type'] . '&page=1&url=' . $_SERVER['SERVER_NAME']);
+                        $apiData = json_decode($json, true);
+
+                        if (!is_array($apiData)) {
+
+                            // 修复：上游不可用时不再对 null 取下标导致 500，返回空歌词
+
+                            $apiData = [];
+
+                        }
+
+                        $result = ['file' => 'null', 'time' => date('Y-m-d H:i:s', time()), 'type' => 'lrc', 'txt' => $apiData['lrc'] ?? ''];
                     } else {
-                        $result = ['file' => \think\facade\Config::get('api.getksc') . '?s=' . $data['songId'], 'time' => date('Y-m-d h:i:s', time()), 'type' => 'ksc', 'txt' => $ksctext];
+                        $result = ['file' => \think\facade\Config::get('api.getksc') . '?s=' . $data['songId'], 'time' => date('Y-m-d H:i:s', time()), 'type' => 'ksc', 'txt' => $ksctext];
                     }
                 } else {
                     $ksc = isset($data['ksc']) ? $data['ksc'] : null;
-                    preg_replace('# #', '', $ksc);
-                    $res = @file_get_contents($ksc, null, null, 0, 10);
+                    // 修复：原来把外部传入的地址直接交给 file_get_contents/send_get，
+                    // 可用 file:// 等协议读取本地文件或探测内网；现只允许公网 http/https 地址
+                    $ksc = is_safe_remote_url($ksc) ? str_replace(' ', '', $ksc) : null;
+                    $res = $ksc ? @file_get_contents($ksc, null, null, 0, 10) : false;
                     if ($res) {
                         $ksctext = send_get($ksc);
-                        $result = ['file' => $ksc, 'time' => date('Y-m-d h:i:s', time()), 'type' => 'ksc', 'txt' => $ksctext];
+                        $result = ['file' => $ksc, 'time' => date('Y-m-d H:i:s', time()), 'type' => 'ksc', 'txt' => $ksctext];
                     } else {
-                        $json = send_get(\think\facade\Config::get('api.music') . '?input=' . $data['songId'] . '&filter=id&type=' . $data['type'] . '&page=1&url=' . $_SERVER['SERVER_NAME']);
-                        $result = json_decode($json, true);
-                        $result = ['file' => 'null', 'time' => date('Y-m-d h:i:s', time()), 'type' => 'lrc', 'txt' => $result['lrc']];
+                        $json = send_get(music_api_url() . '?input=' . $data['songId'] . '&filter=id&type=' . $data['type'] . '&page=1&url=' . $_SERVER['SERVER_NAME']);
+                        $apiData = json_decode($json, true);
+
+                        if (!is_array($apiData)) {
+
+                            // 修复：上游不可用时不再对 null 取下标导致 500，返回空歌词
+
+                            $apiData = [];
+
+                        }
+
+                        $result = ['file' => 'null', 'time' => date('Y-m-d H:i:s', time()), 'type' => 'lrc', 'txt' => $apiData['lrc'] ?? ''];
                     }
                 }
-                \think\facade\Cache::set('musicLyric' . $data['type'] . $data['id'], json_encode($result));
+                \think\facade\Cache::set('musicLyric' . ($data['type'] ?? '') . ($data['id'] ?? ''), json_encode($result));
             }
             $result = json_encode($result);
-            return response($data['jsoncallback'] . '(' . $result . ')');
+            return response(($data['jsoncallback'] ?? 'callback') . '(' . $result . ')');
         }
         public function mainColor() {
             $url = input('get.url');
+            // 修复：只接受公网 http/https 图片地址（原来 file:// 等协议会进入 getimagesize/imagecreatefrom*）
+            if ($url && !is_safe_remote_url($url)) {
+                $url = null;
+            }
             $cache = \think\facade\Cache::get('mainColor' . $url);
             if ($cache) {
                 return response($cache);
@@ -203,12 +236,26 @@ namespace app\controller {
         }
         public function PlayerJs($id) {
             $player = \app\model\Player::where('id', '=', $id)->find();
+            if (!$player) {
+                // 修复：原来播放器不存在时对 null 取下标直接 500
+                return response('console.log("player not found");')->contentType('application/javascript');
+            }
             $user = \app\model\Users::where('uid', '=', $player['user_id'])->find();
+            if (!$user) {
+                $user = ['power' => -1];
+            }
             $theme = $user['power'] == 2 ? 1 : $player['theme'];
             $filePath = getcwd() . '/static/guiloveyou/' . $theme . '/player/js12355555555/player.js';
+            if (!is_file($filePath)) {
+                // 修复：皮肤 2/3 的脚本目录名是 js（没有 js12355555555），原来固定拼目录名会导致取不到文件、播放器空白
+                $altPath = getcwd() . '/static/guiloveyou/' . $theme . '/player/js/player.js';
+                if (is_file($altPath)) {
+                    $filePath = $altPath;
+                }
+            }
             $loadJQuery = $player['jquery'];
             $playerIdScript = "var playerId = '" . $id . "';";
-            $playerScriptContent = json_encode(file_get_contents($filePath));
+            $playerScriptContent = is_file($filePath) ? json_encode(file_get_contents($filePath)) : '""';
             if ($loadJQuery == 1) {
                 $script = "$playerIdScript\nvar script = document.createElement(\"script\");\nscript.src = \"https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js\";\nscript.onload = function() {\n    loadPlayerScript();\n};\ndocument.head.appendChild(script);\n\nfunction loadPlayerScript() {\n    var playerScript = document.createElement(\"script\");\n    playerScript.textContent = $playerScriptContent;\n    document.head.appendChild(playerScript);\n}";
             } else {
@@ -218,7 +265,14 @@ namespace app\controller {
         }
         public function PlayerCss($id) {
             $player = \app\model\Player::where('id', '=', $id)->find();
+            if (!$player) {
+                // 修复：播放器不存在时原来对 null 取下标直接 500
+                return response('', 404);
+            }
             $user = \app\model\Users::where('uid', '=', $player['user_id'])->find();
+            if (!$user) {
+                $user = ['power' => -1];
+            }
             $theme = $user['power'] == 2 ? 1 : $player['theme'];
             $url = get_domain() . 'static/guiloveyou/' . $theme . '/player/css/player.css';
             return redirect($url);

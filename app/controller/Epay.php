@@ -9,7 +9,7 @@ use app\model\Pays;
 use app\model\Users;
 use think\facade\Db;
 
-require_once("../extend/Epay/epay_notify.class.php");
+require_once(__DIR__ . "/../../extend/Epay/epay_notify.class.php");
 
 class Epay extends Common
 {
@@ -100,12 +100,18 @@ class Epay extends Common
     public function vip_Notify()
     {
         $data = input('get.');
-        $this->checkLogin();
-		$userInfo = Users::getLoginUser();
+        // 未配置支付密钥时一律拒绝，避免空密钥导致签名可被伪造
+        if (empty($this->epay_config['key'])) {
+            return 'fail';
+        }
         $alipayNotify = new \AlipayNotify($this->epay_config);
         $verify_result = $alipayNotify->verifyReturn();
         if ($verify_result) {
             $pay_order = Pays::findByOrderId($data['out_trade_no']);
+            if (!$pay_order) {
+                // 订单不存在：无单可发，直接确认，避免 null==0 误判发货、也避免网关无限重试
+                return 'success';
+            }
             $order = [
                 'type' => '' . $pay_order['type'] . '',
                 'orderid' => $data['out_trade_no'],
@@ -115,11 +121,14 @@ class Epay extends Common
                 'money' => $pay_order['money'],
                 'status' => 2,
             ];
-            Order::add($order);
+            // 幂等：同一 trade_no 只记一次（gui_order.trade_no 是主键，重复插入会 500）
+            if (!\think\facade\Db::name('order')->where('trade_no', '=', $data['trade_no'])->find()) {
+                Order::add($order);
+            }
             if ($data['trade_status'] == 'TRADE_FINISHED') {
             } else if ($data['trade_status'] == 'TRADE_SUCCESS' && $pay_order['status'] == 0) {
                 Pays::updateByOrderId($data['out_trade_no'], ['status' => 2, 'endtime' => date("Y-m-d H:i:s")]);
-                Users::where('uid', '=', $userInfo['uid'])
+                Users::where('uid', '=', $pay_order['uid'])
                     ->update([
                         'power' => 1
                     ]);
@@ -179,12 +188,18 @@ class Epay extends Common
     public function pie_Notify()
     {
         $data = input('get.');
-        $this->checkLogin();
-		$userInfo = Users::getLoginUser();
+        // 未配置支付密钥时一律拒绝，避免空密钥导致签名可被伪造
+        if (empty($this->epay_config['key'])) {
+            return 'fail';
+        }
         $alipayNotify = new \AlipayNotify($this->epay_config);
         $verify_result = $alipayNotify->verifyReturn();
         if ($verify_result) {
             $pay_order = Pays::findByOrderId($data['out_trade_no']);
+            if (!$pay_order) {
+                // 订单不存在：无单可发，直接确认，避免 null==0 误判发货、也避免网关无限重试
+                return 'success';
+            }
             $order = [
                 'type' => '' . $pay_order['type'] . '',
                 'orderid' => $data['out_trade_no'],
@@ -194,13 +209,17 @@ class Epay extends Common
                 'money' => $pay_order['money'],
                 'status' => 2,
             ];
-            Order::add($order);
+            // 幂等：同一 trade_no 只记一次（gui_order.trade_no 是主键，重复插入会 500）
+            if (!\think\facade\Db::name('order')->where('trade_no', '=', $data['trade_no'])->find()) {
+                Order::add($order);
+            }
             if ($data['trade_status'] == 'TRADE_FINISHED') {
             } else if ($data['trade_status'] == 'TRADE_SUCCESS' && $pay_order['status'] == 0) {
                 Pays::updateByOrderId($data['out_trade_no'], ['status' => 2, 'endtime' => date("Y-m-d H:i:s")]);
                 $peie_Num = 1;
-                $now_Num = $userInfo['pie'] + $peie_Num;
-                Users::where('uid', '=', $userInfo['uid'])
+                $u = Users::where('uid', '=', $pay_order['uid'])->find();
+                $now_Num = ($u ? $u['pie'] : 0) + $peie_Num;
+                Users::where('uid', '=', $pay_order['uid'])
                     ->update([
                         'pie' => $now_Num,
                     ]);
@@ -260,12 +279,18 @@ class Epay extends Common
     public function limit2_Notify()
     {
         $data = input('get.');
-        $this->checkLogin();
-		$userInfo = Users::getLoginUser();
+        // 未配置支付密钥时一律拒绝，避免空密钥导致签名可被伪造
+        if (empty($this->epay_config['key'])) {
+            return 'fail';
+        }
         $alipayNotify = new \AlipayNotify($this->epay_config);
         $verify_result = $alipayNotify->verifyReturn();
         if ($verify_result) {
             $pay_order = Pays::findByOrderId($data['out_trade_no']);
+            if (!$pay_order) {
+                // 订单不存在：无单可发，直接确认，避免 null==0 误判发货、也避免网关无限重试
+                return 'success';
+            }
             $order = [
                 'type' => '' . $pay_order['type'] . '',
                 'orderid' => $data['out_trade_no'],
@@ -275,13 +300,17 @@ class Epay extends Common
                 'money' => $pay_order['money'],
                 'status' => 2,
             ];
-            Order::add($order);
+            // 幂等：同一 trade_no 只记一次（gui_order.trade_no 是主键，重复插入会 500）
+            if (!\think\facade\Db::name('order')->where('trade_no', '=', $data['trade_no'])->find()) {
+                Order::add($order);
+            }
             if ($data['trade_status'] == 'TRADE_FINISHED') {
             } else if ($data['trade_status'] == 'TRADE_SUCCESS' && $pay_order['status'] == 0) {
                 Pays::updateByOrderId($data['out_trade_no'], ['status' => 2, 'endtime' => date("Y-m-d H:i:s")]);
                 $peie_Num = 5000;
-                $now_Num = $userInfo['limit2'] + $peie_Num;
-                Users::where('uid', '=', $userInfo['uid'])
+                $u = Users::where('uid', '=', $pay_order['uid'])->find();
+                $now_Num = ($u ? $u['limit2'] : 0) + $peie_Num;
+                Users::where('uid', '=', $pay_order['uid'])
                     ->update([
                         'limit2' => $now_Num,
                     ]);

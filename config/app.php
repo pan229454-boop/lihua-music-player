@@ -27,6 +27,6 @@ return [
 
     // 错误显示信息,非调试模式有效
     'error_message'    => '页面错误！请稍后再试～',
-    // 显示错误信息
-    'show_error_msg'   => true,
+    // 显示错误信息（修复：置为 false，生产环境不再把异常堆栈吐给浏览器，错误仍写入 runtime/log）
+    'show_error_msg'   => false,
 ];

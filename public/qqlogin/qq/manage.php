@@ -1,5 +1,5 @@
 <?php
-include "../comm/comm.php";
+include __DIR__ . "/../comm/comm.php";
 if (!empty($_GET['action']) && $_GET['action'] == "exit") {
     $_SESSION['login'] = 0;
 }

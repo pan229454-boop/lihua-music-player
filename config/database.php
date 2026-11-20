@@ -53,7 +53,8 @@ return [
             // 是否需要断线重连
             'break_reconnect' => true,
             // 监听SQL
-            'trigger_sql'     => env('APP_DEBUG', true),
+            // 修复：默认不再记录全部 SQL（原来未设置 APP_DEBUG 时会一直记录）
+            'trigger_sql'     => env('APP_DEBUG', false),
             // 开启字段缓存
             'fields_cache'    => false,
         ],

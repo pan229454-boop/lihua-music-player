@@ -18,34 +18,46 @@ class SendEmail
      * @param $emailAddress 邮件地址
      * @return bool|string 返回是否发送成功
      */
-    public static function SendCode($code, $emailAddress)
-    {
-        try { $settings = MailSettings::read(); }
-        catch (\Throwable $e) { return false; }
-        $title = str_replace('{code}', (string)$code, $settings['template_title'] ?? '邮箱验证码');
-        $body = str_replace('{code}', (string)$code, $settings['template_body'] ?? '尊敬的用户，您正在进行邮箱验证，本次请求的验证码为：{code}');
-        return self::SendEmail($title, $body, $emailAddress);
-    }
-
     public static function SendEmail($title = '测试邮件', $message = '你好,本邮件由笒鬼鬼音乐播放器发出', $emailAddress = 'cenguigui@qq.com')
     {
-        try {
-            $settings = MailSettings::read();
-        } catch (\Throwable $e) {
-            return '邮件配置读取失败';
+        // 优先使用后台「更多设置 → 邮箱设置」里的配置，未填写时回退到本文件里的默认值
+        $cfg = function ($key, $default = '') {
+            $v = \think\facade\Config::get('web.' . $key, '');
+            return ($v === '' || $v === null) ? $default : $v;
+        };
+        if ((string) $cfg('mail_enable', '1') === '0') {
+            return '邮箱功能未开启（请到 后台 → 更多设置 → 邮箱设置 中开启）';
+        }
+        $host     = (string) $cfg('smtp_host', self::$Host);
+        $username = (string) $cfg('smtp_user', self::$Username);
+        $password = (string) $cfg('smtp_pass', self::$Password);
+        $from     = (string) $cfg('mail_from', $username);
+        $fromName = (string) $cfg('mail_from_name', self::$FromName);
+        $secure   = strtolower(trim((string) $cfg('smtp_secure', 'ssl')));
+        if ($secure === 'none') {
+            $secure = '';
+        }
+        $defPort  = ($secure === 'tls') ? 587 : (($secure === 'ssl') ? 465 : 25);
+        $port     = (int) $cfg('smtp_port', $defPort);
+        if ($port <= 0) {
+            $port = $defPort;
+        }
+        $demo = (string) $cfg('mail_demo', '');
+        if ($demo === '') {
+            $demo = function_exists('get_domain') ? get_domain() : self::$demo;
         }
         $mail = new PHPMailer();
         // 3. 设置属性，告诉我们的服务器，谁跟谁发送邮件
         $mail->IsSMTP();            // 告诉服务器使用smtp协议发送
-        $mail->Timeout = 15;
         $mail->SMTPAuth = true;        // 开启SMTP授权
-        $mail->SMTPSecure = $settings['security'] ?? 'ssl';    // ssl加密 
-        $mail->Port = $settings['port'] ?? 465;            // 使用465端口
-        $mail->Host = $settings['host'] ?? self::$Host;    // 告诉我们的服务器使用163的smtp服务器发送
-        $mail->From = $settings['from'] ?? self::$From;    // 发送者的邮件地址
-        $mail->FromName = $settings['from_name'] ?? self::$FromName; // 发送邮件的用户昵称
-        $mail->Username = $settings['username'] ?? self::$Username; // 登录到邮箱的用户名
-        $mail->Password = $settings['password'] ?? self::$Password; // 第三方登录的授权码，在邮箱里面设置
+        $mail->SMTPSecure = $secure;    // ssl / tls / 空
+        $mail->Port = $port;            // 端口
+        $mail->Host = $host;            // smtp 服务器
+        $mail->Timeout = 15;            // 修复：防止 SMTP 不可达时把请求挂住（默认是 300 秒）
+        $mail->From = $from;            // 发送者的邮件地址
+        $mail->FromName = $fromName;    // 发送邮件的用户昵称
+        $mail->Username = $username;    // 登录到邮箱的用户名
+        $mail->Password = $password;    // 第三方登录的授权码
 
         // 编辑发送的邮件内容
         $mail->IsHTML(true);            // 发送的内容使用html编写
@@ -109,8 +121,8 @@ class SendEmail
                         <p>' . nl2br(htmlspecialchars($message)) . '</p>
                     </div>
                     <div class="email-footer">
-                        <p>此邮件由' . htmlspecialchars($mail->From, ENT_QUOTES, 'UTF-8') . '自动发送。</p>
-                        <p><a href="' . htmlspecialchars($settings['homepage'] ?? self::$demo, ENT_QUOTES, 'UTF-8') . '">访问我们的主页</a></p>
+                        <p>此邮件由' . htmlspecialchars($from) . '自动发送。</p>
+                        <p><a href="' . htmlspecialchars($demo) . '">访问我们的主页</a></p>
                     </div>
                 </div>
             </body>

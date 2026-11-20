@@ -13,11 +13,19 @@ class Webapi extends Common
 {
    public function getFavicon()
 {
-    $url = Request::param('url', Config::get('api.music'));
+    $url = Request::param('url', music_api_url());
     if (empty($url)) {
         return Response::create([
             'code' => 0,
             'msg'  => '请输入要获取Favicon的网址',
+            'data' => ''
+        ], 'json', 400)->header(['Content-Type' => 'application/json']);
+    }
+    // 修复：先校验目标是否为公网 http/https，再做任何网络探测（防 SSRF）
+    if (!is_safe_remote_url(preg_match("~^(?:f|ht)tps?://~i", $url) ? $url : 'https://' . $url)) {
+        return Response::create([
+            'code' => 0,
+            'msg'  => '不支持的网址',
             'data' => ''
         ], 'json', 400)->header(['Content-Type' => 'application/json']);
     }
@@ -223,7 +231,7 @@ private function curl_fav($url)
     }
     $type = Request::param('type');
     $id = Request::param('songId');
-    $apiUrl = Config::get('api.music') . '?input=' . $id . '&filter=id&type=' . $type . '&page=1&url=' . $_SERVER['SERVER_NAME'];
+    $apiUrl = music_api_url() . '?input=' . $id . '&filter=id&type=' . $type . '&page=1&url=' . $_SERVER['SERVER_NAME'];
     $json = send_get($apiUrl);
     $data = json_decode($json, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
@@ -257,7 +265,7 @@ public function url(Request $request)
         $type = Request::param('type');
         $id = Request::param('songId');
 
-        $apiUrl = Config::get('api.music') . '?input=' . $id . '&filter=id&type=' . $type . '&page=1&url=' . $_SERVER['SERVER_NAME'];
+        $apiUrl = music_api_url() . '?input=' . $id . '&filter=id&type=' . $type . '&page=1&url=' . $_SERVER['SERVER_NAME'];
         $json = send_get($apiUrl);
         $data = json_decode($json, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -329,7 +337,7 @@ public function url(Request $request)
         ]
     ]);
 }
-private function checkAndUpdateUserLimit(string $token)
+private function checkAndUpdateUserLimit($token)
 {
     if (!Openapi::Token($token)) {
         return Response::create([

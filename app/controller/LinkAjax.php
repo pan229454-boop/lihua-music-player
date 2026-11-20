@@ -45,12 +45,12 @@ class LinkAjax extends Common
 		if (Links::delByid($data['id'])) {
 			$result = [
 				'code' => 0,
-				'message' => '删除广告成功',
+				'message' => '删除广告成功', 'msg' => '删除广告成功',
 			];
 		} else {
 			$result = [
 				'code' => 1,
-				'message' => '删除失败',
+				'message' => '删除失败', 'msg' => '删除失败',
 			];
 		}
         return json($result);
@@ -63,12 +63,12 @@ class LinkAjax extends Common
 		if (Links::add($data)) {
 			$result = [
 				'code' => 0,
-				'message' => '添加广告成功',
+				'message' => '添加广告成功', 'msg' => '添加广告成功',
 			];
 		} else {
 			$result = [
 				'code' => 1,
-				'message' => '添加失败',
+				'message' => '添加失败', 'msg' => '添加失败',
 			];
 		}
         return json($result);

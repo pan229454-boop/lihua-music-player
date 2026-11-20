@@ -51,9 +51,10 @@ class Users extends Base
         $userInfo = $self->where('token', '=', $token)->find();
         $str = $userInfo['username'] . $userInfo['password'] . time() . real_ip();
         $sign = md5($str . md5('11144452888'));
-        Cookie::set('pskey', authcode($userInfo['uid'], 'ENCODE', md5($str)));
-        Cookie::set('skey', md5($str));
-        Cookie::set('sid', $sign);
+        $keep = self::loginKeepSeconds();
+        Cookie::set('pskey', authcode($userInfo['uid'], 'ENCODE', AUTH_KEY), $keep);
+        Cookie::set('skey', md5($str), $keep);
+        Cookie::set('sid', $sign, $keep);
         $update = $self->where('uid', '=', $userInfo['uid'])
             ->update([
                 'skey' => md5($str),
@@ -62,6 +63,9 @@ class Users extends Base
                 'city' => get_ip_city(real_ip()),
                 'time' => time()
             ]);
+        if ($update) {
+            UserSession::add($userInfo['uid'], md5($str), $sign, $keep);   // 每个设备一条，互不踢下线
+        }
         return $update ? true : false;
     }
 
@@ -84,6 +88,20 @@ class Users extends Base
         return $check ? true : false;
     }
 
+    // 登录状态保持多久（后台「更多设置 → 登录保持」，单位：天；0 = 关掉浏览器就失效）
+    private static function loginKeepSeconds()
+    {
+        $raw = Config::get('web.login_keep_days');
+        $days = ($raw === null || $raw === '') ? 30 : intval($raw);
+        if ($days < 0) {
+            $days = 0;
+        }
+        if ($days > 3650) {
+            $days = 3650;
+        }
+        return $days * 86400;
+    }
+
     public static function login($userInfo)
     {
         $self = new static();
@@ -92,9 +110,10 @@ class Users extends Base
         
         $userInfoFromDb = $self->where('username', '=', $userInfo['username'])->find();
         if ($userInfoFromDb && password_verify($userInfo['password'], $userInfoFromDb['password'])) { // 使用 password_verify 验证密码
-            Cookie::set('pskey', authcode($userInfoFromDb['uid'], 'ENCODE', md5($str)));
-            Cookie::set('skey', md5($str));
-            Cookie::set('sid', $sign);
+            $keep = self::loginKeepSeconds();
+            Cookie::set('pskey', authcode($userInfoFromDb['uid'], 'ENCODE', AUTH_KEY), $keep);
+            Cookie::set('skey', md5($str), $keep);
+            Cookie::set('sid', $sign, $keep);
             $update = $self->where('uid', '=', $userInfoFromDb['uid'])
                 ->update([
                     'skey' => md5($str),
@@ -103,6 +122,9 @@ class Users extends Base
                     'city' => get_ip_city(real_ip()),
                     'time' => time()
                 ]);
+            if ($update) {
+                UserSession::add($userInfoFromDb['uid'], md5($str), $sign, $keep);   // 每个设备一条，互不踢下线
+            }
             return $update ? true : false;
         }
         return false;
@@ -137,13 +159,13 @@ class Users extends Base
     {
         $user = self::where('uid', '=', $uid)->field('qq')->find();
         if (!$user) {
-            return ['code' => -1, 'message' => '用户不存在'];
+            return ['code' => -1, 'message' => '用户不存在', 'msg' => '用户不存在'];
         }
         if ($user['qq'] === $newQQ) {
-            return ['code' => 1, 'message' => '新QQ号不能与旧QQ号相同'];
+            return ['code' => 1, 'message' => '新QQ号不能与旧QQ号相同', 'msg' => '新QQ号不能与旧QQ号相同'];
         }
         $update = self::where('uid', '=', $uid)->update(['qq' => $newQQ]);
-        return $update !== false ? ['code' => 0, 'message' => 'QQ号修改成功'] : ['code' => 2, 'message' => 'QQ号修改失败'];
+        return $update !== false ? ['code' => 0, 'message' => 'QQ号修改成功', 'msg' => 'QQ号修改成功'] : ['code' => 2, 'message' => 'QQ号修改失败', 'msg' => 'QQ号修改失败'];
     }
 
     public static function change_Password($uid, $data)
@@ -168,16 +190,17 @@ class Users extends Base
         } elseif (password_verify($data['outpass'], $user_row['password'])) {
             $new_pass = password_hash($data['password'], PASSWORD_BCRYPT); // 使用 password_hash 加密新密码
             if ($self->where('uid', '=', $uid)->update(['password' => $new_pass])) {
+                UserSession::forgetAll($uid);
                 Cookie::delete('skey');
                 Cookie::delete('sid');
                 Cookie::delete('pskey');
                 Cookie::delete('user_token');
-                $result = ['code' => 0, 'message' => '修改密码成功，请重新登录'];
+                $result = ['code' => 0, 'message' => '修改密码成功，请重新登录', 'msg' => '修改密码成功，请重新登录'];
             } else {
-                $result = ['code' => 1, 'message' => '密码更新失败，请重试'];
+                $result = ['code' => 1, 'message' => '密码更新失败，请重试', 'msg' => '密码更新失败，请重试'];
             }
         } else {
-            $result = ['code' => 1, 'message' => '原密码不正确！'];
+            $result = ['code' => 1, 'message' => '原密码不正确！', 'msg' => '原密码不正确！'];
         }
 
         return $result;
@@ -186,7 +209,7 @@ class Users extends Base
     public static function findpassword($data)
     {
         $self = new static();
-        $user_row = $self->where('mail', '=', $data['mail'])->field('password')->find();
+        $user_row = $self->where('mail', '=', $data['mail'])->field('password,uid')->find();
         if (!$user_row) {
             return ['code' => -1, 'msg' => '该邮箱未注册'];
         }
@@ -205,6 +228,7 @@ class Users extends Base
         if (!$validate->check($data)) {
             return ['code' => -1, 'msg' => $validate->getError()];
         } elseif ($self->where('mail', '=', $data['mail'])->update(['password' => $new_pass])) {
+            UserSession::forgetAll(isset($user_row['uid']) ? $user_row['uid'] : 0);
             return ['code' => 0, 'msg' => '密码重置成功，请重新登录'];
         } else {
             return ['code' => -1, 'msg' => '密码重置失败，请重试'];
@@ -255,7 +279,7 @@ class Users extends Base
     {
         $self = new static();
 		$skey = cookie("skey");
-        $pskey = authcode(cookie('pskey'), 'DECODE', $skey);
+        $pskey = authcode(cookie('pskey'), 'DECODE', AUTH_KEY);
         //获取登录Cookie
         $uid = $pskey;
         //组成查询条件
@@ -270,55 +294,78 @@ class Users extends Base
         }
     }*/
     public static function getLoginUser()
-{
-    $self = new static();
-    $skey = Cookie::get('skey');
-    $pskey = authcode(Cookie::get('pskey'), 'DECODE', $skey);
-
-    // 获取登录用户的 UID
-    $uid = $pskey;
-
-    if (!$uid) {
-        return false;
+    {
+        $skey = Cookie::get('skey');
+        $sid = Cookie::get('sid');
+        $pskeyCookie = Cookie::get('pskey');
+        if (!$pskeyCookie) {
+            return false;
+        }
+        $uid = authcode($pskeyCookie, 'DECODE', AUTH_KEY);
+        if (!$uid) {
+            return false;
+        }
+        $self = new static();
+        $userInfo = $self->where('uid', $uid)->find();
+        if (!$userInfo) {
+            return false;
+        }
+        // 有会话 cookie 时按会话表校验（多设备各自有效）
+        if ($skey && $sid) {
+            if (UserSession::check($uid, $skey, $sid)) {
+                return $userInfo;
+            }
+            if (hash_equals((string)$userInfo['sid'], (string)$sid) && (string)$userInfo['skey'] === $skey) {
+                UserSession::remember($uid, $skey, $sid);   // 升级前的老登录态，补一条记录继续用
+                return $userInfo;
+            }
+            return false;
+        }
+        return $userInfo;
     }
-
-    // 组成查询条件并查询数据库
-    $userInfo = $self->where('uid', $uid)->find();
-
-    return $userInfo ?: false;
-}
 
     public static function checkLogin()
     {
         $skey = Cookie::get('skey');
-        if (!$skey) {
+        $sid = Cookie::get('sid');
+        $pskeyCookie = Cookie::get('pskey');
+        if (!$skey || !$pskeyCookie) {
             return [
                 'url' => '/console#/user/login',
                 'msg' => '请登录后再进行操作！'
             ];
-        } else {
-            $self = new static();
-            $sid = Cookie::get('sid');
-            $pskey = authcode(Cookie::get('pskey'), 'DECODE', $skey);
-            $user = $self->where('uid', '=', $pskey)->find();
-            if ($sid == $user['sid']) {
-                if ($user['skey'] === $skey) {
-                    return null;
-                } else {
-                    return [
-                        'url' => '/console#/user/login',
-                        'msg' => '请登录后再进行操作！'
-                    ];
-                }
-            } else {
-                Cookie::delete('skey');
-                Cookie::delete('sid');
-                Cookie::delete('pskey');
-                return [
-                    'url' => '/console#/user/login',
-                    'msg' => '您的账号在别处登录，请重新登录！'
-                ];
-            }
         }
+        $uid = authcode($pskeyCookie, 'DECODE', AUTH_KEY);
+        if (!$uid) {
+            return [
+                'url' => '/console#/user/login',
+                'msg' => '请登录后再进行操作！'
+            ];
+        }
+        $self = new static();
+        $user = $self->where('uid', '=', $uid)->find();
+        if (!$user) {
+            return [
+                'url' => '/console#/user/login',
+                'msg' => '请登录后再进行操作！'
+            ];
+        }
+        // 1) 设备会话表里能查到就是有效登录（你在这台登录，不影响另一台）
+        if ($sid && UserSession::check($uid, $skey, $sid)) {
+            return null;
+        }
+        // 2) 老 cookie（本次升级前登录的）走用户表兜底，并补一条会话记录，不用重新登录
+        if ($sid && hash_equals((string)$user['sid'], (string)$sid) && (string)$user['skey'] === $skey) {
+            UserSession::remember($uid, $skey, $sid);
+            return null;
+        }
+        // 3) 确实不是有效登录态，清 cookie
+        Cookie::delete('skey');
+        Cookie::delete('sid');
+        Cookie::delete('pskey');
+        return [
+            'url' => '/console#/user/login',
+            'msg' => '登录状态已失效，请重新登录！'
+        ];
     }
 }

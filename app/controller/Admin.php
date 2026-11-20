@@ -56,6 +56,39 @@ class Admin extends Common
 		$this->checkPower();
         return View::fetch();
     }
+
+    // 新增：主题设置（选择首页模板）
+    public function themeset()
+    {
+        $this->checkLogin();
+        $this->checkPower();
+        $current = home_theme_key();
+        $list = [];
+        foreach (home_themes() as $key => $item) {
+            $item['key'] = $key;
+            $item['active'] = ($key === $current);
+            $item['status'] = $item['active'] ? '使用中' : '未使用';
+            $item['preview'] = '/?theme=' . $key;
+            $item['cardclass'] = $item['active'] ? 'theme-card active' : 'theme-card';
+            $item['tagclass'] = $item['active'] ? 'theme-tag on' : 'theme-tag';
+            $item['btnclass'] = $item['active'] ? 'layui-btn-disabled' : '';
+            $item['btntext'] = $item['active'] ? '使用中' : '启用';
+            $item['mockclass'] = 'thumb-mock mock-' . ($item['mock'] ?? 'bars');
+            $list[] = $item;
+        }
+        View::assign('themes', $list);
+        View::assign('total', count($list));
+        View::assign('current', $current);
+        return View::fetch();
+    }
+
+    // 新增：更多设置（邮箱 / 登录安全等）
+    public function moreset()
+    {
+        $this->checkLogin();
+        $this->checkPower();
+        return View::fetch();
+    }
     
     public function serverstate()
     {
@@ -63,184 +96,6 @@ class Admin extends Common
 		$this->checkPower();
         return View::fetch();
     }
-
-    public function advanced()
-    {
-        $this->checkLogin();
-        $this->checkPower();
-        if (!\think\facade\Session::has('mail_settings_csrf')) {
-            \think\facade\Session::set('mail_settings_csrf', bin2hex(random_bytes(32)));
-        }
-        $csrf = \think\facade\Session::get('mail_settings_csrf');
-        if (request()->isPost()) {
-            $data = request()->post();
-            if (!isset($data['csrf']) || !is_string($data['csrf']) || !is_string($csrf) || !hash_equals($csrf, $data['csrf'])) {
-                return json(['code' => -1, 'msg' => '页面已失效，请刷新后重试']);
-            }
-            try {
-                $action = $data['action'] ?? 'smtp';
-                if (!is_string($action)) throw new \InvalidArgumentException('请求格式不正确');
-                if ($action === 'music_source_probe') {
-                    $endpoint = trim((string)($data['source_endpoint'] ?? ''));
-                    $key = (string)($data['source_key'] ?? '');
-                    if ($endpoint === '' || strlen($endpoint)>2048 || !filter_var($endpoint,FILTER_VALIDATE_URL)) throw new \InvalidArgumentException('接口地址不正确');
-                    $types = ['wyy'=>'网易云音乐','qq'=>'QQ音乐','kugou'=>'酷狗音乐','kuwo'=>'酷我音乐','ximalaya'=>'喜马拉雅','migu'=>'咪咕音乐','qishui'=>'汽水音乐']; $found=[];
-                    foreach ($types as $type=>$label) {
-                        $url=$endpoint.(strpos($endpoint,'?')===false?'?':'&').http_build_query(['shykey'=>$key,'type'=>$type,'name'=>'周杰伦','page'=>1,'limit'=>1]);
-                        $ch=curl_init($url); curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>10,CURLOPT_FOLLOWLOCATION=>false,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2]); $body=curl_exec($ch); $code=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
-                        $json=is_string($body)?json_decode($body,true):null; $rows=is_array($json)?($json['data']??$json['result']??$json):null; if(is_array($rows)&&isset($rows['list']))$rows=$rows['list']; $ok=$code>=200&&$code<300&&is_array($rows); if($ok){foreach($rows as $row){if(is_array($row)&&(isset($row['id'])||isset($row['mid'])||isset($row['hash']))&&(isset($row['name'])||isset($row['songname'])||isset($row['song_name']))){$found[]=['id'=>$type,'name'=>$label];break;}}}
-                    }
-                    return json(['code'=>0,'msg'=>'探测完成，请确认后保存','platforms'=>$found]);
-                }
-                if ($action === 'music_source_save' || $action === 'music_source_toggle') {
-                    $enabled = $data['source_enabled'] ?? '';
-                    if (!is_string($enabled) || !in_array($enabled, ['0', '1'], true)) throw new \InvalidArgumentException('接口状态不正确');
-                    if ($action === 'music_source_toggle') {
-                        \PHPMailer\MusicSourceRegistry::setEnabled($data['source_id'] ?? '', $enabled === '1');
-                    } else {
-                        \PHPMailer\MusicSourceRegistry::upsert([
-                            'id' => $data['source_id'] ?? '',
-                            'name' => $data['source_name'] ?? '',
-                            'provider' => $data['source_provider'] ?? '',
-                            'endpoint' => $data['source_endpoint'] ?? '',
-                            'key' => $data['source_key'] ?? '',
-                            'enabled' => $enabled === '1',
-                            'platforms' => json_decode((string)($data['source_platforms'] ?? '[]'), true) ?: []
-                        ]);
-                    }
-                    return json(['code' => 0, 'msg' => '接口配置已保存，尚未验证连接和套餐权限', 'sources' => \PHPMailer\MusicSourceRegistry::publicList()]);
-                }
-                if ($action === 'music_api') {
-                    return json(['code'=>-1,'msg'=>'请使用多接口管理列表保存配置']);
-                    $provider = $data['music_provider'] ?? '';
-                    $endpoint = $data['music_endpoint'] ?? '';
-                    $key = $data['music_key'] ?? '';
-                    if (!is_string($key)) throw new \InvalidArgumentException('音乐API密钥格式不正确');
-                    $old = \PHPMailer\MusicApiSettings::read();
-                    if ($key === '') $key = $old['key'] ?? '';
-                    $config = ['provider' => $provider, 'endpoint' => $endpoint, 'key' => $key];
-                    \PHPMailer\MusicApiSettings::save($config);
-                    if (\PHPMailer\MusicApiSettings::read() !== $config) throw new \RuntimeException('音乐API配置写入校验失败');
-                    return json(['code' => 0, 'msg' => '音乐API配置已保存；未验证套餐权限', 'music_provider' => $provider, 'has_music_key' => $key !== '']);
-                }
-                if ($action === 'server_auth_switch') {
-                    $value = $data['skip_check'] ?? '0';
-                    if (!is_string($value) || !in_array($value, ['0', '1'], true)) throw new \InvalidArgumentException('授权开关值不正确');
-                    $settings = \PHPMailer\ServerAuthSettings::read();
-                    $settings['skip_check'] = $value === '1';
-                    \PHPMailer\ServerAuthSettings::save($settings);
-                    $saved = \PHPMailer\ServerAuthSettings::read();
-                    if (($saved['skip_check'] ?? false) !== $settings['skip_check']) throw new \RuntimeException('授权开关写入校验失败');
-                    return json(['code' => 0, 'skip_check' => $saved['skip_check'], 'msg' => $settings['skip_check'] ? '已跳过本站前置授权检查，不代表获得上游服务授权' : '已恢复本站前置授权检查']);
-                }
-                if ($action === 'server_auth') {
-                    $qq = $data['auth_qq'] ?? '';
-                    $key = $data['auth_skey'] ?? '';
-                    if (!is_string($qq) || !preg_match('/^[1-9][0-9]{4,19}$/D', $qq)) throw new \InvalidArgumentException('请输入5到20位数字授权QQ');
-                    if (!is_string($key) || strlen($key) > 512 || preg_match('/[\x00-\x20\x7f]/', $key)) throw new \InvalidArgumentException('授权密钥格式不正确，不能包含空白字符');
-                    $settings = \PHPMailer\ServerAuthSettings::read();
-                    if ($key === '') {
-                        if (($settings['qq'] ?? '') !== $qq) throw new \InvalidArgumentException('首次配置或更换授权QQ时，请填写授权密钥');
-                        $key = $settings['skey'] ?? '';
-                    }
-                    if ($key === '') throw new \InvalidArgumentException('首次配置请填写授权密钥');
-                    \PHPMailer\ServerAuthSettings::save(array_merge($settings, ['qq' => $qq, 'skey' => $key]));
-                    return json(['code' => 0, 'msg' => '服务器授权配置已保存，尚未验证外部授权是否有效']);
-                }
-                if ($action === 'template') {
-                    foreach (['template_title', 'template_body', 'homepage'] as $key) {
-                        if (!isset($data[$key]) || !is_string($data[$key])) throw new \InvalidArgumentException('模板格式不正确');
-                    }
-                    $title = trim($data['template_title']);
-                    $body = trim($data['template_body']);
-                    $homepage = trim($data['homepage']);
-                    if ($title === '' || strlen($title) > 200 || preg_match('/[\r\n\x00]/', $title)) throw new \InvalidArgumentException('标题不能为空且不能含换行，最大200字节');
-                    if ($body === '' || strlen($body) > 10000 || strpos($body, '{code}') === false || strpos($body, "\0") !== false) throw new \InvalidArgumentException('正文必须包含 {code}，最大10000字节');
-                    if (strlen($homepage) > 2048 || !filter_var($homepage, FILTER_VALIDATE_URL) || !in_array(strtolower((string)parse_url($homepage, PHP_URL_SCHEME)), ['http', 'https'], true)) throw new \InvalidArgumentException('主页链接必须是有效的 HTTP 或 HTTPS 网址');
-                    $settings = \PHPMailer\MailSettings::read();
-                    $settings['template_title'] = $title;
-                    $settings['template_body'] = $body;
-                    $settings['homepage'] = $homepage;
-                    \PHPMailer\MailSettings::save($settings);
-                    return json(['code' => 0, 'msg' => '邮件模板已保存']);
-                }
-                if ($action === 'test') {
-                    $email = $data['test_email'] ?? '';
-                    if (!is_string($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) throw new \InvalidArgumentException('请输入有效的测试收件邮箱');
-                    $settings = \PHPMailer\MailSettings::read();
-                    if (empty($settings['password']) || empty($settings['host']) || empty($settings['from'])) throw new \InvalidArgumentException('请先保存 SMTP 配置');
-                    $last = (int)\think\facade\Session::get('mail_test_last', 0);
-                    if (time() - $last < 30) throw new \InvalidArgumentException('测试发送间隔至少30秒');
-                    \think\facade\Session::set('mail_test_last', time());
-                    try { $result = \PHPMailer\SendEmail::SendCode('123456', $email); }
-                    catch (\Throwable $e) { $result = false; }
-                    return json(['code' => $result === true ? 0 : -1, 'msg' => $result === true ? 'SMTP已接受测试邮件，请检查收件箱和垃圾邮件（示例验证码123456）' : '测试发送失败，请检查 SMTP 配置、授权码及服务器网络']);
-                }
-                if ($action !== 'smtp') throw new \InvalidArgumentException('未知操作');
-                foreach (['host', 'from', 'username', 'from_name', 'password', 'port', 'security'] as $key) {
-                    if (isset($data[$key]) && !is_scalar($data[$key])) throw new \InvalidArgumentException('配置格式不正确');
-                }
-                $host = trim((string)($data['host'] ?? ''));
-                $from = trim((string)($data['from'] ?? ''));
-                $username = trim((string)($data['username'] ?? ''));
-                $name = trim((string)($data['from_name'] ?? ''));
-                $port = filter_var($data['port'] ?? '', FILTER_VALIDATE_INT);
-                $security = (string)($data['security'] ?? 'ssl');
-                if (!preg_match('/^[a-zA-Z0-9](?:[a-zA-Z0-9.-]{0,251}[a-zA-Z0-9])?$/D', $host)) throw new \InvalidArgumentException('请输入 SMTP 服务器域名，不要填写网址或路径');
-                if (!filter_var($from, FILTER_VALIDATE_EMAIL)) throw new \InvalidArgumentException('请输入有效的发件邮箱');
-                if ($username === '' || strlen($username) > 254 || preg_match('/[\r\n]/', $username)) throw new \InvalidArgumentException('请输入有效的 SMTP 登录账号');
-                if ($name === '' || strlen($name) > 150 || preg_match('/[\r\n]/', $name)) throw new \InvalidArgumentException('请输入有效的发件人名称');
-                if ($port === false || $port < 1 || $port > 65535) throw new \InvalidArgumentException('端口必须为 1 到 65535');
-                if (!in_array($security, ['ssl', 'tls'], true)) throw new \InvalidArgumentException('请选择 SSL 或 STARTTLS 加密');
-                $old = \PHPMailer\MailSettings::read();
-                $password = (string)($data['password'] ?? '');
-                if ($password === '') {
-                    if (!empty($old['password']) && (($old['from'] ?? '') !== $from || ($old['username'] ?? '') !== $username || ($old['host'] ?? '') !== $host)) {
-                        throw new \InvalidArgumentException('更换邮箱、账号或服务器时，请重新填写授权码');
-                    }
-                    $password = $old['password'] ?? '';
-                }
-                if ($password === '' || strlen($password) > 512 || preg_match('/[\r\n\x00]/', $password)) throw new \InvalidArgumentException('首次配置请填写有效的邮箱授权码');
-                \PHPMailer\MailSettings::save(array_merge($old, ['host' => $host, 'from' => $from, 'username' => $username, 'from_name' => $name, 'port' => $port, 'security' => $security, 'password' => $password]));
-                return json(['code' => 0, 'msg' => '邮件配置已保存，后续发送将使用新配置（尚未验证 SMTP 连通性）']);
-            } catch (\Throwable $e) {
-                return json(['code' => -1, 'msg' => $e->getMessage()]);
-            }
-        }
-        View::assign('mailSettingsCsrf', $csrf);
-        return View::fetch('admin/advanced/index');
-    }
-
-    public function mailSettingsData()
-    {
-        $this->checkLogin();
-        $this->checkPower();
-        try {
-            $settings = \PHPMailer\MailSettings::read();
-            $csrf = \think\facade\Session::get('mail_settings_csrf');
-            if (!is_string($csrf) || strlen($csrf) !== 64) {
-                $csrf = bin2hex(random_bytes(32));
-                \think\facade\Session::set('mail_settings_csrf', $csrf);
-            }
-            // Persist before returning the token used by all three forms.
-            \think\facade\Session::save();
-            $auth = \PHPMailer\ServerAuthSettings::read();
-            $settings['auth_qq'] = $auth['qq'] ?? '';
-            $settings['skip_check'] = ($auth['skip_check'] ?? false) === true;
-            $hasAuthKey = !empty($auth['skey']);
-            $hasPassword = !empty($settings['password']);
-            unset($settings['password']);
-            $music = \PHPMailer\MusicApiSettings::read();
-            $settings['music_provider'] = $music['provider'] ?? 'legacy';
-            $settings['music_endpoint'] = $music['endpoint'] ?? 'http://shybot.top/v2/music/api/';
-            $settings['has_music_key'] = !empty($music['key']);
-            $settings['music_sources'] = \PHPMailer\MusicSourceRegistry::publicList();
-            return json(['code' => 0, 'data' => $settings, 'has_password' => $hasPassword, 'has_auth_key' => $hasAuthKey, 'csrf' => $csrf])->header(['Cache-Control' => 'no-store, private']);
-        } catch (\Throwable $e) {
-            return json(['code' => -1, 'msg' => $e->getMessage()]);
-        }
-    }
-
 
     public function userinfo()
     {
@@ -253,6 +108,7 @@ class Admin extends Common
 	
 	public function QqLoginSet()
 	{
+		$this->checkLogin();
 		$userInfo = Users::getLoginUser();
 		header("Location: https://music-api2.qsdurl.cn/qqlogin/api.php?callback=".get_domain()."/Admin/set_callback/uid/".$userInfo['uid']);
 		exit();
@@ -260,6 +116,19 @@ class Admin extends Common
 	
 	public function set_callback($uid)
 	{
+		// 修复：原逻辑无鉴权，可把任意 QQ 绑定到任意 uid（含管理员）后再走 QQ 登录接管
+		$check = Users::checkLogin();
+		if ($check !== null) {
+			View::assign('alert', $check['msg']);
+			View::assign('url', $check['url']);
+			exit(View::fetch('common/error_no_console'));
+		}
+		$currentUser = Users::getLoginUser();
+		if (!$currentUser || (string)$currentUser['uid'] !== (string)$uid) {
+			View::assign('alert', '请先登录后再操作');
+			View::assign('url', '/console#/user/login');
+			exit(View::fetch('common/error_no_console'));
+		}
 		$data = input();
 		$update['token']=$data['openid'];
 		if(!$data['openid'] || !$data['callback']){
@@ -303,7 +172,7 @@ class Admin extends Common
         return $result;
 	}
 	
-	public function Player($id)
+	public function Player($id = '')
 {
     $this->checkLogin(); // 检查用户是否登录
 
@@ -357,7 +226,79 @@ class Admin extends Common
     return View::fetch();
 }
 	
-	public function songSheet($id)
+	// 下载「已经填好本站地址和播放器ID」的嵌入包（后台播放器编辑页的下载按钮用）
+	public function pluginzip($id = '')
+	{
+		$this->checkLogin();
+		$type = strtolower((string) input('get.type', 'common'));
+		$type = preg_replace('/[^a-z]/', '', $type);
+		$map = [
+			'wordpress' => 'down/wordpress/WordPress-MyhkPlayer.zip',
+			'typecho'   => 'down/typecho/Typecho-MyhkPlayer.zip',
+			'emlog'     => 'down/emlog/Emlog-MyhkPlayer.zip',
+			'zblog'     => 'down/zblog/ZBlog-MyhkPlayer.zip',
+			'common'    => 'down/common/Player-Embed-Universal.zip',
+		];
+		if (!isset($map[$type])) {
+			$type = 'common';
+		}
+		$pid = preg_replace('/[^A-Za-z0-9]/', '', (string) $id);
+		if ($pid === '') {
+			$pid = '1';
+		}
+		$api = rtrim((string) get_domain(), '/');
+		$src = root_path() . 'public/' . $map[$type];
+
+		if (!is_file($src) || !class_exists('\ZipArchive')) {
+			View::assign('alert', '嵌入包暂时不可用，请稍后再试');
+			View::assign('url', '#/');
+			return View::fetch('common/error');
+		}
+
+		$dir = runtime_path() . 'pluginkit';
+		if (!is_dir($dir)) {
+			@mkdir($dir, 0755, true);
+		}
+		$out = $dir . '/' . $type . '-' . $pid . '.zip';
+
+		$in = new \ZipArchive();
+		if ($in->open($src) !== true) {
+			View::assign('alert', '嵌入包读取失败');
+			View::assign('url', '#/');
+			return View::fetch('common/error');
+		}
+		$zip = new \ZipArchive();
+		$zip->open($out, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+		$note = '（本包已经填好本站地址与播放器ID，按下面步骤装上就能用）';
+		for ($i = 0; $i < $in->numFiles; $i++) {
+			$name = $in->getNameIndex($i);
+			$data = $in->getFromIndex($i);
+			$data = str_replace(
+				[
+					'http://你的播放器站点',
+					'PUT-YOUR-PLAYER-SITE-HERE',
+					"'MYHK_PLAYER_ID',  '1'",
+					'/api/PlayerJs/id/播放器ID',
+					'【重要】当前版本播放器不需要安装任何插件。',
+				],
+				[
+					$api,
+					$api,
+					"'MYHK_PLAYER_ID',  '" . $pid . "'",
+					'/api/PlayerJs/id/' . $pid,
+					'【重要】当前版本播放器不需要安装任何插件。' . $note,
+				],
+				$data
+			);
+			$zip->addFromString($name, $data);
+		}
+		$zip->close();
+		$in->close();
+
+		return download($out, 'MyhkPlayer-' . $type . '.zip');
+	}
+
+	public function songSheet($id = '')
 {
     $this->checkLogin(); // 确保用户已登录
 
@@ -402,6 +343,7 @@ class Admin extends Common
 
     public function logout()
     {
+        \app\model\UserSession::forgetCurrent();   // 只退出当前设备
         $this->checkLogin();
         Cookie::delete('skey');
 		Cookie::delete('sid');
@@ -538,8 +480,31 @@ class Admin extends Common
 	public function system()
     {
 		$this->checkLogin();
+		// 修复：右上角「主题」图标请求的是 /admin/system/theme.html，「三个点」图标请求的是 /admin/system/about.html，
+		// 原来不管请求哪个子路径都返回同一张「版本信息」页，所以两个按钮弹出来一模一样。
+		// 现在按子路径返回对应视图：theme -> 主题设置（配色方案），about -> 版本与关于，其它保持原样。
+		$path  = strtolower(trim((string) request()->pathinfo(), '/'));
+		$parts = explode('/', $path);
+		$sub   = explode('.', (string) end($parts))[0];   // pathinfo 带 .html 后缀，先去掉
+		// theme -> 主题设置（配色方案），about -> 版本与关于，more -> 更多面板；这些视图都在 view/system/ 下
+		if (in_array($sub, ['theme', 'about', 'more'], true) && is_file(app()->getRootPath() . 'view/system/' . $sub . '.html')) {
+			return View::fetch('system/' . $sub);
+		}
 		return View::fetch('theme');
     }
+
+	// 留言管理（数据表 gui_chat）
+	public function chat($act)
+    {
+		$this->checkLogin();
+		$this->checkPower();
+		switch ($act) {
+			case 'list':
+				return View::fetch('admin/chat/list');
+			break;
+		}
+	}
+
 	
 	private ?Users $userInfo = null;
     public function checkLogin()

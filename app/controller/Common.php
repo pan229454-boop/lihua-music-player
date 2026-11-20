@@ -20,24 +20,25 @@ class Common extends BaseController
         $config = Db::name('configs')->column('v', 'k');
 		$config['version']='V.2024.11.02';
 		Config::set($config, 'web');
+		// 授权QQ / skey 现在在后台「更多设置 → 音乐授权」里填，这里读配置；
+		// 配置为空时退回原来的默认值，保证老站点行为不变。
+		$authQq = isset($config['auth_qq']) && trim((string) $config['auth_qq']) !== ''
+			? trim((string) $config['auth_qq']) : '2963246343';
+		$authSkey = isset($config['auth_skey']) ? trim((string) $config['auth_skey']) : '';
 		$data=[
 			'music'	=>	music_api, // 勿动，动了播放不了
-            // 			以下两个参数是你需要改的
-			'qq'	=>	'2963246343', // 你的授权QQ
-			'skey'	=>	'music-*******', // 你的 skey
+			'qq'	=>	$authQq,   // 你的授权QQ（后台可改）
+			'skey'	=>	$authSkey, // 你的 skey（后台可改）
 		];
-        // Saved credentials override legacy defaults; malformed files fail closed.
-        try {
-            $auth = \PHPMailer\ServerAuthSettings::read();
-            if (isset($auth['qq'], $auth['skey'])) {
-                $data['qq'] = $auth['qq'];
-                $data['skey'] = $auth['skey'];
-            }
-        } catch (\Throwable $e) {
-            $data['qq'] = '';
-            $data['skey'] = '';
-        }
 		Config::set($data, 'api');
+
+		// 后台页面（SPA 片段）不做浏览器缓存：否则改了模板，页面还是旧的
+		$pathinfo = strtolower(ltrim(request()->pathinfo(), '/'));
+		if ($pathinfo === 'admin' || strpos($pathinfo, 'admin/') === 0) {
+			header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+			header('Pragma: no-cache');
+			header('Expires: 0');
+		}
     }
 	
 	protected function getSide(){

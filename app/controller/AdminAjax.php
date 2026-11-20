@@ -9,6 +9,7 @@ use think\facade\Cache;
 use think\facade\Request;
 use think\facade\Session;
 use app\model\Users; 
+use app\model\Chat;
 use app\model\Player;
 use app\model\SongSheet;
 use app\model\Song;
@@ -16,23 +17,25 @@ use app\model\Plays;
 use app\model\PlayerAuth;
 use app\model\PlayerSongSheet;
 use app\model\Links;
+use PHPMailer\SendEmail;
 
 class AdminAjax extends Common
 {
    public function cleanupUsers()
 {
+    $this->checkLogin();
     $deletedUsers = Users::cleanupInactiveUsers();
     
     if (!empty($deletedUsers)) {
         return json([
             'status' => 'success', 
-            'message' => '清理成功', 
+            'message' => '清理成功', 'msg' => '清理成功', 
             'deleted_users' => $deletedUsers
         ]);
     } else {
         return json([
             'status' => 'error', 
-            'message' => '清理失败或没有需要删除的用户'
+            'message' => '清理失败或没有需要删除的用户', 'msg' => '清理失败或没有需要删除的用户'
         ]);
     }
 }
@@ -123,58 +126,143 @@ class AdminAjax extends Common
 		return $memory;
 	}
 
-	public function getLinuxCount()
-{
-    $maxAttempts = 5;
-    $attempt = 0;
-    $cpu_usage = 'N/A';
-    $load_avg = 'N/A';
-    $cpu_cores = intval(trim(shell_exec('nproc')));
-    $output = null;
-    while ($attempt < $maxAttempts) {
-        $output = shell_exec('top -b -n 1');
-        if ($output) {
-            break; 
+    /**
+     * 采集 Linux 的内存 / CPU / 负载
+     * 兼容说明：普通 Linux 直接读 /proc/stat、/proc/loadavg；容器 / PRoot / 虚拟主机里这些文件
+     *           可能被隐藏（Permission denied），所以逐级降级：CPU 先读 /proc/stat，读不到就统计
+     *           各进程 CPU 时间增量；负载用 sys_getloadavg()；内存统一读 /proc/meminfo；
+     *           全部读不到才显示 N/A。
+     */
+    public function getLinuxCount()
+    {
+        $cores = $this->getCpuCores();
+
+        // ---------- 内存：/proc/meminfo ----------
+        $mem_total = 0;
+        $mem_available = 0;
+        $meminfo = @file_get_contents('/proc/meminfo');
+        if ($meminfo) {
+            if (preg_match('/MemTotal:\s+(\d+)\s+kB/', $meminfo, $m)) {
+                $mem_total = intval($m[1]);
+            }
+            if (preg_match('/MemAvailable:\s+(\d+)\s+kB/', $meminfo, $m)) {
+                $mem_available = intval($m[1]);
+            } elseif (preg_match('/MemFree:\s+(\d+)\s+kB/', $meminfo, $m)) {
+                $mem_available = intval($m[1]);
+            }
         }
-        $attempt++;
-    }
-    $mem_total = $mem_used = $cpu_idle = $load_avg_1m = 'N/A';
+        $mem_used = max($mem_total - $mem_available, 0);
+        $mem_usage = $mem_total > 0 ? round(100 * $mem_used / $mem_total, 2) : 0;
 
-    if ($output) {
-        preg_match('/%Cpu\(s\):\s+([0-9.]+) us,.* ([0-9.]+) id/', $output, $cpu_matches);
-        preg_match('/MiB Mem :\s+([0-9.]+) total,.* ([0-9.]+) used/', $output, $mem_matches);
-        preg_match('/load average:\s+([0-9.]+),\s+([0-9.]+),\s+([0-9.]+)/', $output, $load_matches);
+        // ---------- CPU ----------
+        $cpu_usage = $this->calcCpuUsage($cores);
 
-        $cpu_idle = isset($cpu_matches[2]) ? $cpu_matches[2] : 'N/A';
-        if ($cpu_idle != 'N/A' && is_numeric($cpu_idle)) {
-            $cpu_usage = round(100 - floatval($cpu_idle), 2);
+        // ---------- 负载 ----------
+        $load_avg = null;
+        $load_raw = null;
+        if (function_exists('sys_getloadavg')) {
+            $load = @sys_getloadavg();
+            if (is_array($load) && isset($load[0]) && is_numeric($load[0])) {
+                $load_raw = round(floatval($load[0]), 2);
+                $load_avg = round(min($load_raw / $cores * 100, 100), 2);
+            }
         }
-        $load_avg_1m = isset($load_matches[1]) ? $load_matches[1] : 'N/A';
-        $mem_total = isset($mem_matches[1]) ? $mem_matches[1] : 'N/A';
-        $mem_used = isset($mem_matches[2]) ? $mem_matches[2] : 'N/A';
-        if ($cpu_cores > 0) {
-            $load_avg_percent = round(min(floatval($load_avg_1m) / $cpu_cores * 100, 100), 2);
-        } else {
-            $load_avg_percent = 'N/A';
+
+        return [
+            'mem' => $mem_usage . '%',
+            'memRealUsed' => $this->getFilesize($mem_used * 1024),
+            'memTotal' => $this->getFilesize($mem_total * 1024),
+            'cpu' => ($cpu_usage === null) ? 'N/A' : $cpu_usage . '%',
+            'load_avg' => ($load_avg === null) ? 'N/A' : $load_avg . '%',
+            'load_raw' => ($load_raw === null) ? 'N/A' : $load_raw,
+            'cores' => $cores,
+        ];
+    }
+
+    private function getCpuCores()
+    {
+        static $cores = null;
+        if ($cores !== null) {
+            return $cores;
         }
-        $load_avg = $load_avg_percent;
-    }
-    if ($mem_total != 'N/A' && $mem_total > 0) {
-        $mem_usage = round(100 * $mem_used / $mem_total, 2);
-    } else {
-        $mem_usage = 0;
+        $cores = 0;
+        $cpuinfo = @file_get_contents('/proc/cpuinfo');
+        if ($cpuinfo) {
+            $cores = substr_count(strtolower($cpuinfo), 'processor');
+        }
+        if ($cores <= 0) {
+            $cores = intval(trim((string) @shell_exec('nproc')));
+        }
+        if ($cores <= 0) {
+            $cores = 1;
+        }
+        return $cores;
     }
 
-    $result = [
-        'mem' => $mem_usage . '%',
-        'memRealUsed' => $this->getFilesize(floatval($mem_used) * 1024 * 1024), 
-        'memTotal' => $this->getFilesize(floatval($mem_total) * 1024 * 1024), 
-        'cpu' => $cpu_usage . '%',
-        'load_avg' => $load_avg . '%',
-    ];
+    private function calcCpuUsage($cores)
+    {
+        // 方式一：/proc/stat 两次采样（标准 Linux）
+        $readStat = function () {
+            $stat = @file_get_contents('/proc/stat');
+            if (!$stat) {
+                return null;
+            }
+            $line = '';
+            foreach (explode("\n", $stat) as $l) {
+                if (strpos($l, 'cpu') === 0) {
+                    $line = $l;
+                    break;
+                }
+            }
+            $parts = preg_split('/\s+/', trim($line));
+            if (count($parts) < 5) {
+                return null;
+            }
+            $v = [];
+            foreach (array_slice($parts, 1) as $one) {
+                $v[] = intval($one);
+            }
+            $idle = (isset($v[3]) ? $v[3] : 0) + (isset($v[4]) ? $v[4] : 0);
+            $busy = (isset($v[0]) ? $v[0] : 0) + (isset($v[1]) ? $v[1] : 0) + (isset($v[2]) ? $v[2] : 0)
+                  + (isset($v[5]) ? $v[5] : 0) + (isset($v[6]) ? $v[6] : 0) + (isset($v[7]) ? $v[7] : 0);
+            return ['busy' => $busy, 'total' => $busy + $idle];
+        };
+        // 方式二：容器里 /proc/stat 被隐藏时，用所有进程的 utime + stime 增量估算
+        $sample = function () {
+            $sum = null;
+            foreach ((array) glob('/proc/[0-9]*/stat') as $file) {
+                $stat = @file_get_contents($file);
+                if (!$stat) {
+                    continue;
+                }
+                $pos = strrpos($stat, ')');
+                if ($pos === false) {
+                    continue;
+                }
+                $fields = preg_split('/\s+/', trim(substr($stat, $pos + 1)));
+                if (count($fields) < 13) {
+                    continue;
+                }
+                $sum += intval($fields[11]) + intval($fields[12]); // utime + stime
+            }
+            return $sum;
+        };
+        // 两种采样一起做，只等一次 200ms，省一半时间
+        $statA = $readStat();
+        $procA = $sample();
+        usleep(200000);
+        $statB = $readStat();
+        $procB = $sample();
 
-    return $result;
-}
+        if ($statA !== null && $statB !== null && $statB['total'] > $statA['total']) {
+            return max(0, min(100, round(100 * ($statB['busy'] - $statA['busy']) / ($statB['total'] - $statA['total']), 2)));
+        }
+        if ($procA !== null && $procB !== null && $procB >= $procA && $cores > 0) {
+            $usage = round(100 * (($procB - $procA) / 100) / (0.2 * $cores), 2); // 每秒 100 个时钟滴答
+            return max(0, min(100, $usage));
+        }
+        return null;
+    }
 
 private function getFilesize($size)
 {
@@ -205,6 +293,12 @@ private function getFilesize($size)
 				],[
 					'jump'	=>	'/webset',
 					'title'	=>	'网站设置'
+					],[
+						'jump'	=>	'/moreset',
+						'title'	=>	'更多设置'
+				],[
+					'jump'	=>	'/themeset',
+					'title'	=>	'主题设置'
 				],[
 					'jump'	=>	'/users/act/list',
 					'title'	=>	'用户列表'
@@ -214,16 +308,13 @@ private function getFilesize($size)
 				],[
 					'jump'	=>	'/orders/act/list',
 					'title'	=>	'订单列表'
-				],
-				[
+				],[
 					'jump'	=>	'/serverstate',
-					'title'	=>	'服务器管理'
-				],
-				[
-					'jump'	=>	'/advanced',
-					'title'	=>	'<i class=\"layui-icon layui-icon-set\"></i> 高级设置'
-				],
-
+					'title'	=>	'服务器状态'
+				],[
+					'jump'	=>	'/chat/act/list',
+					'title'	=>	'留言管理'
+				]
 			];
 		}elseif($userInfo['power']==1){
 			$userInfo['lv']='付费版';
@@ -379,6 +470,7 @@ $open_head = [
 	
 	public function editPlayerSongSheet()
 	{
+		$this->checkLogin();
 		$data = input('post.');
 		$userInfo = Users::getLoginUser();
 		if(Player::checkPlayerUid($data['playerId'],$userInfo['uid'])== true){
@@ -387,7 +479,7 @@ $open_head = [
 				'msg' => '没有权限'
 			];
 		}else{
-			Cache::delete('info_sources_v1_'.$data['playerId']);
+			Cache::delete('info'.$data['playerId']);
 			
 			$ids = request()->param('ids/a');
 			
@@ -397,6 +489,10 @@ $open_head = [
 			if($ids != null){
 				$joins = [];
 				for($i = 0;$i < count($ids);$i++){
+					// 修复：原来不校验歌单归属，可以把别人的歌单挂到自己的播放器上
+					if ($userInfo['power'] != 0 && SongSheet::checkSheetUid($ids[$i], $userInfo['uid']) == true) {
+						continue;
+					}
 					$joins[$i] = ['player_id' => $data['playerId'],'song_sheet_id' => $ids[$i],'taxis'=>$i];
 				}
 
@@ -448,9 +544,47 @@ $open_head = [
 				}
 			break;
 			case 'auth':
+				if (!domain_auth_enabled()) {
+					// 功能开关关掉后，直接调接口也不受理
+					$result = ['code' => -1, 'msg' => '域名授权功能已在「更多设置」里关闭'];
+					break;
+				}
 				$data = input('post.');
-				if($data['remark']==''){
+				// 规范化：去掉 http(s):// 、路径、端口、结尾斜杠，统一小写
+				$data['domain'] = strtolower(trim((string) $data['domain']));
+				$data['domain'] = preg_replace('#^[a-z]+://#i', '', $data['domain']);
+				$data['domain'] = preg_replace('#[/?].*$#', '', $data['domain']);
+				$data['domain'] = preg_replace('#:[0-9]+$#', '', $data['domain']);
+				$data['domain'] = trim($data['domain'], '.');
+				if ($data['domain'] === '') {
+					$result = ['code' => -1, 'msg' => '请输入要授权的域名'];
+					break;
+				}
+				if(empty($data['remark'])){
 					$data['remark']='无备注';
+				}
+				if ($userInfo['power'] != 0 && Player::checkPlayerUid($data['id'], $userInfo['uid']) == true) {
+				    // 修复：原来不校验归属，任何登录用户都能操作他人的播放器授权
+				    $result = ['code' => -1, 'msg' => '没有权限'];
+				    break;
+				}
+				// 授权顶级域名后，它的二级域名默认都可用，不用再单独授权
+				$coveredBy = '';
+				$existings = PlayerAuth::where('player_id', '=', $data['id'])->column('domain');
+				foreach ((array) $existings as $existsDomain) {
+					$existsDomain = (string) $existsDomain;
+					if ($existsDomain === '' || $existsDomain === $data['domain']) {
+						continue;
+					}
+					$suffix = '.' . $existsDomain;
+					if (substr($data['domain'], -strlen($suffix)) === $suffix) {
+						$coveredBy = $existsDomain;
+						break;
+					}
+				}
+				if ($coveredBy !== '') {
+					$result = ['code' => -1, 'msg' => '已经授权过 ' . $coveredBy . '，它的所有二级域名默认都可用，不用单独再授权'];
+					break;
 				}
 				$check=PlayerAuth::where('player_id','=',$data['id'])
 					->where('domain','=',$data['domain'])
@@ -492,7 +626,16 @@ $open_head = [
 				}
 			break;
 			case 'delauth':
+				if (!domain_auth_enabled()) {
+					$result = ['code' => -1, 'msg' => '域名授权功能已在「更多设置」里关闭'];
+					break;
+				}
 				$data = input('post.');
+				if ($userInfo['power'] != 0 && Player::checkPlayerUid($data['id'], $userInfo['uid']) == true) {
+				    // 修复：原来不校验归属，任何登录用户都能操作他人的播放器授权
+				    $result = ['code' => -1, 'msg' => '没有权限'];
+				    break;
+				}
 				$del=PlayerAuth::where('player_id','=',$data['id'])->where('domain','=',$data['domain'])->delete();
 				if($del){
 					$result = [
@@ -508,7 +651,12 @@ $open_head = [
 			break;
 			case 'edit':
 				$data = input('post.');
-				Cache::delete('info_sources_v1_'.$data['id']);
+				Cache::delete('info'.$data['id']);
+				if ($userInfo['power'] != 0 && Player::checkPlayerUid($data['id'], $userInfo['uid']) == true) {
+				    // 修复：原来不校验归属，任何登录用户都能操作他人的播放器
+				    $result = ['code' => -1, 'msg' => '没有权限'];
+				    break;
+				}
 				if(!array_key_exists('phone_load',$data)){
 					$data['phone_load']='0';
 				}
@@ -544,9 +692,14 @@ $open_head = [
 			break;
 			case 'del':
 				$data = input('post.');
-				Cache::delete('info_sources_v1_'.$data['id']);
+				Cache::delete('info'.$data['id']);
 				$userInfo = Users::getLoginUser();
 				// 删除歌单关联项
+				if ($userInfo['power'] != 0 && Player::checkPlayerUid($data['id'], $userInfo['uid']) == true) {
+				    // 修复：原来不校验归属，任何登录用户都能操作他人的播放器
+				    $result = ['code' => -1, 'msg' => '没有权限'];
+				    break;
+				}
 				PlayerSongSheet::where('player_id',$data['id'])->delete();
 				// 删除播放器
 				Player::where('id',$data['id'])->delete();
@@ -615,7 +768,7 @@ $open_head = [
 					if(count($players) > 0){
 						foreach ($players as $value){
 							// 删除api缓存
-							Cache::delete('info_sources_v1_'.$value->player_id);
+							Cache::delete('info'.$value->player_id);
 						}
 					}
 					SongSheet::sets($data);
@@ -627,11 +780,16 @@ $open_head = [
 			break;
 			case 'del':
 				$data = input('post.');
-				$players = SongSheet::songSheetPlayers($data['id']);
+								if ($userInfo['power'] != 0 && SongSheet::checkSheetUid($data['id'], $userInfo['uid']) == true) {
+				    // 修复：原来不校验归属，任何登录用户都能删除他人的歌单
+				    $result = ['code' => -1, 'msg' => '没有权限'];
+				    break;
+				}
+$players = SongSheet::songSheetPlayers($data['id']);
 						if(count($players) > 0){
 							foreach ($players as $value){
 								// 删除api缓存
-								Cache::delete('info_sources_v1_'.$value->player_id);
+								Cache::delete('info'.$value->player_id);
 							}
 						}
 				// 删除歌单音乐
@@ -653,21 +811,7 @@ $open_head = [
     {
 		$this->checkLogin();
 		$userInfo = Users::getLoginUser();
-        switch ($act) {
-            case 'preview':
-                try {
-                    $query = input('get.');
-                    $adapter = new \PHPMailer\MusicSourceService($query['music_source'] ?? 'legacy');
-                    return redirect($adapter->audio($query['type'] ?? '', $query['songid'] ?? ''));
-                } catch (\Throwable $e) {
-                    return response('试听接口不可用：'.($e->getMessage() ?: '接口返回错误'), 502);
-                }
-            case 'sources':
-                try {
-                    return json(['code' => 0, 'sources' => \PHPMailer\MusicSourceRegistry::publicList(true)]);
-                } catch (\Throwable $e) {
-                    return json(['code' => -1, 'msg' => '音乐接口列表读取失败', 'sources' => []]);
-                }
+		switch ($act) {
             case 'info':
 				$data = input('post.');
 				$rule=[
@@ -698,6 +842,11 @@ $open_head = [
             $page = input('get.page', 1); // 获取当前页码，默认为1
             $limit = input('get.limit', 10); // 每页显示数量，默认为10
             $songSheetId = input('get.songSheetId'); // 获取歌单ID
+            if ($userInfo['power'] != 0 && SongSheet::checkSheetUid($songSheetId, $userInfo['uid']) == true) {
+                // 修复：原来不校验归属，任何登录用户都能读取他人的歌单
+                $result = ['code' => -1, 'msg' => '没有权限'];
+                break;
+            }
             $songs = Song::where('song_sheet_id', $songSheetId)
                 ->page($page, $limit)
                 ->select();
@@ -746,70 +895,48 @@ $open_head = [
 				}
 			break;
 			case 'save':
-                if (!request()->isPost()) return json(['code'=>-1,'msg'=>'请使用POST保存']);
-				$jsonData = $_POST['jsonData'];
-				$songSheetId = $_POST['songSheetId'];
-                if (!SongSheet::where('id',$songSheetId)->where('uid',$userInfo['uid'])->find()) return json(['code'=>-1,'msg'=>'歌单不存在或无权修改']);
-                // Validate all rows before the existing destructive replace flow.
-                $array = json_decode($jsonData, true);
-                if (!is_array($array) || count($array) > 5000) return json(['code'=>-1,'msg'=>'歌曲列表格式不正确']);
-                try {
-                    $sources = \PHPMailer\MusicSourceRegistry::read();
-                    foreach ($array as &$row) {
-                        if (!is_array($row)) throw new \InvalidArgumentException('歌曲数据不正确');
-                        $sourceId = $row['music_source'] ?? 'legacy';
-                        if (!is_string($sourceId) || !isset($sources[$sourceId])) throw new \InvalidArgumentException('歌曲来源接口不存在');
-                        // Disabled sources remain persistable so reordering does not lose songs.
-                        $row['music_source'] = $sourceId;
-                    }
-                    unset($row);
-                    $columns = \think\facade\Db::name('song')->getTableFields();
-                    if (!in_array('music_source', $columns, true)) throw new \RuntimeException('请先执行音乐接口来源数据库升级脚本');
-                } catch (\Throwable $e) {
-                    return json(['code'=>-1,'msg'=>$e->getMessage()]);
-                }
+				$jsonData = $_POST['jsonData'] ?? '';
+				$songSheetId = $_POST['songSheetId'] ?? '';
+				if ($userInfo['power'] != 0 && SongSheet::checkSheetUid($songSheetId, $userInfo['uid']) == true) {
+				    // 修复：原来不校验归属，任何登录用户都能操作他人的歌单
+				    $result = ['code' => -1, 'msg' => '没有权限'];
+				    break;
+				}
+				$array = json_decode($jsonData, true);
+				if (!is_array($array)) {
+					// 修复：原逻辑先删后插且不校验输入，jsonData 非法会把整张歌单的歌曲删空
+					$result = ['code' => -1, 'msg' => '数据格式错误，未做任何修改'];
+					break;
+				}
 				// 清除缓存
 				$players = SongSheet::songSheetPlayers($songSheetId);
 				if(count($players) > 0){
 					foreach ($players as $value){
 						// 删除api缓存
-						Cache::delete('info_sources_v1_'.$value->player_id);
+						Cache::delete('info'.$value->player_id);
 					}
 				}
 
-                // Insert new rows first: insertion failure cannot delete the previous playlist (MyISAM compatible).
-                $previousIds = Song::where('song_sheet_id',$songSheetId)->column('id');
-                $newIds = [];
-                foreach ($array as &$row) {
-                    $row = array_intersect_key($row,array_flip(['song_id','name','type','album_name','artist_name','album_cover','location','lyric','taxis','music_source']));
-                    $row['song_sheet_id']=$songSheetId;
-                    $row['id']=bin2hex(random_bytes(16));
-                    $newIds[]=$row['id'];
-                }
-                unset($row);
-                try {
-                    if ($array && Db::name('song')->insertAll($array)!==count($array)) throw new \RuntimeException('写入不完整');
-                    if ($previousIds) Song::where('song_sheet_id',$songSheetId)->whereIn('id',$previousIds)->delete();
-                    $result=['code'=>0,'msg'=>'保存成功'];
-                } catch (\Throwable $e) {
-                    if ($newIds) Song::where('song_sheet_id',$songSheetId)->whereIn('id',$newIds)->delete();
-                    $result=['code'=>-1,'msg'=>'保存失败，旧歌曲列表已保留'];
-                }
-                foreach ($players as $value) Cache::delete('info_sources_v1_'.$value->player_id);
-
+				// 修复：删除 + 重新插入放进同一事务，避免中途失败导致歌单歌曲全部丢失
+				Db::startTrans();
+				try {
+					Song::where('song_sheet_id', $songSheetId)->delete();
+					if (!empty($array)) {
+						foreach ($array as $key => $value) {
+							$value['song_sheet_id'] = $songSheetId;
+							$value['id'] = uniqid();
+							$array[$key] = $value;
+						}
+						Db::name('song')->replace()->insertAll($array);
+					}
+					Db::commit();
+					$result = ['code' => 0, 'msg' => '保存成功[已清除缓存]'];
+				} catch (\Throwable $e) {
+					Db::rollback();
+					$result = ['code' => -1, 'msg' => '保存失败：' . $e->getMessage()];
+				}
 			break;
 			case 'search':
-                try {
-                    $query = input('get.');
-                    $sourceId = $query['music_source'] ?? 'legacy';
-                    $source = \PHPMailer\MusicSourceRegistry::get($sourceId);
-                    if ($source['provider'] === 'shymusic') {
-                        $adapter = new \PHPMailer\MusicSourceService($sourceId);
-                        return json(['code' => 0, 'songs' => $adapter->search($query['type'] ?? '', $query['song_name'] ?? '')]);
-                    }
-                } catch (\Throwable $e) {
-                    return json(['code' => -1, 'msg' => $e->getMessage(), 'songs' => []]);
-                }
 				$data=input('get.');
 				$s=$data['song_name'];
 				switch ($data['type']) {
@@ -1094,7 +1221,8 @@ public function clearCache()
 
     $os_name = PHP_OS;
     if (strpos($os_name, "Linux") !== false) {
-       $count = $this->getLinuxCount();
+        // 修复：原来这里被整段注释掉了，实时监控的 CPU / 内存 / 负载 永远是空的（进度条不动）
+        $count = $this->getLinuxCount();
         $result = [
             'code' => 0,
             'data' => [
@@ -1106,6 +1234,8 @@ public function clearCache()
                 'cpus' => 'layui-progress-bar',
                 'load' => $count['load_avg'],
                 'loads' => 'layui-progress-bar',
+                'loadRaw' => $count['load_raw'],
+                'cores' => $count['cores'],
                 'play' => whits($play),
                 'todayplay' => whits($Todayplay),
                 'meplay' => whits($meplay),
@@ -1170,18 +1300,111 @@ private function getRowColor(int $index): string
     }
 }
 	
-	public function config()
+		// 新增：发送测试邮件（仅管理员），用于验证邮箱配置是否可用
+	public function moresetTestMail()
+	{
+		$this->checkLogin();
+		$curUser = Users::getLoginUser();
+		if (($curUser['power'] ?? -1) !== 0) {
+			return json(['code' => -1, 'msg' => '没有权限']);
+		}
+		$email = trim((string) input('post.email'));
+		if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			return json(['code' => -1, 'msg' => '请填写正确的收件邮箱']);
+		}
+		$result = SendEmail::SendEmail('SMTP 测试邮件', '如果你收到这封邮件，说明邮箱配置已经可用，验证码功能同时生效。', $email);
+		if ($result === true) {
+			return json(['code' => 0, 'msg' => '测试邮件已发出，请到 ' . $email . ' 查收（含垃圾箱）']);
+		}
+		return json(['code' => -1, 'msg' => '发送失败：' . (is_string($result) ? $result : '未知错误')]);
+	}
+
+public function config()
     {
 		$this->checkLogin();
+		// 修复：网站设置属于管理员权限，原来只要登录就能改全站配置
+		$curUser = Users::getLoginUser();
+		if (($curUser['power'] ?? -1) !== 0) {
+			return json(['code' => -1, 'msg' => '没有权限']);
+		}
+		// 修复：原为字符串拼接 SQL（键值均可注入）；改为参数绑定 + 键名白名单
 		foreach (input('post.') as $k => $value) {
-			Db::execute("INSERT INTO gui_configs SET k='" . $k . "',v='" . $value . "' ON DUPLICATE KEY UPDATE v='" . $value . "'");
+			if (!is_scalar($value) || !preg_match('/^[A-Za-z0-9_]{1,64}$/', (string) $k)) {
+				continue;
+			}
+			Db::execute('INSERT INTO gui_configs SET k=?, v=? ON DUPLICATE KEY UPDATE v=?', [$k, (string) $value, (string) $value]);
 		}
 		$result = [
 			'code' => 0,
-			'message' => '保存成功'
+			'message' => '保存成功', 'msg' => '保存成功'
 		];
         return json($result);
     }
+
+	// 留言管理：列表 / 删除（只给管理员）
+	public function chat($act)
+    {
+		$this->checkLogin();
+		$userInfo = Users::getLoginUser();
+		if (($userInfo['power'] ?? -1) !== 0) {
+			return json(['code' => -1, 'msg' => '没有权限']);
+		}
+		switch ($act) {
+			case 'list':
+				$page = intval(input('get.page', 1));
+				$page = $page > 0 ? $page : 1;
+				$limit = intval(input('get.limit', 15));
+				if ($limit < 1 || $limit > 100) { $limit = 15; }
+				$keyword = trim((string) input('get.keyword', ''));
+				$build = function () use ($keyword) {
+					$query = Chat::order('id', 'desc');
+					if ($keyword !== '') {
+						$query = $query->where(function ($sub) use ($keyword) {
+							$sub->where('nickname', 'like', '%' . $keyword . '%')->whereOr('content', 'like', '%' . $keyword . '%');
+						});
+					}
+					return $query;
+				};
+				$count = intval($build()->count());
+				$rows = $build()->page($page, $limit)->select();
+				$rows = (is_object($rows) && method_exists($rows, 'toArray')) ? $rows->toArray() : (array) $rows;
+				$data = [];
+				foreach ($rows as $row) {
+					$data[] = [
+						'id' => intval($row['id']),
+						'uid' => intval($row['uid']),
+						'nickname' => (string) $row['nickname'],
+						'qq' => (string) $row['qq'],
+						'content' => (string) $row['content'],
+						'sendip' => (string) $row['sendip'],
+						'sendtime' => (string) ($row['sendtime'] ?: $row['time']),
+					];
+				}
+				$result = ['code' => 0, 'msg' => '', 'count' => $count, 'data' => $data];
+			break;
+			case 'del':
+				$ids = [];
+				$one = input('post.id', '');
+				if ($one !== '' && $one !== null) { $ids[] = intval($one); }
+				$many = (string) input('post.ids', '');
+				if ($many !== '') {
+					foreach (explode(',', $many) as $v) { $ids[] = intval($v); }
+				}
+				$ids = array_values(array_unique(array_filter($ids, function ($v) { return $v > 0; })));
+				if (!$ids) {
+					$result = ['code' => -1, 'msg' => '没有要删除的留言'];
+					break;
+				}
+				$n = intval(Chat::where('id', 'in', $ids)->delete());
+				$result = ['code' => 0, 'msg' => '删除成功（' . $n . ' 条）'];
+			break;
+			default:
+				$result = ['code' => -1, 'msg' => '未知操作'];
+			break;
+		}
+		return json($result);
+	}
+
 	
 	public function userInfo()
     {
@@ -1205,6 +1428,7 @@ private function getRowColor(int $index): string
 	
 	public function password()
 	{
+		$this->checkLogin();
 		$userInfo = Users::getLoginUser();
 		$data = input('post.');
 		$result = Users::change_Password($userInfo['uid'],$data);
@@ -1213,13 +1437,14 @@ private function getRowColor(int $index): string
     
     public function changeQQ()
 {
+    $this->checkLogin();
     $userInfo = Users::getLoginUser();
     $newQQ = input('post.newQQ');
     
     if (empty($newQQ) || !preg_match('/^\d{5,20}$/', $newQQ)) {
         return json([
             'code' => -1,
-            'message' => 'QQ号格式不正确'
+            'message' => 'QQ号格式不正确', 'msg' => 'QQ号格式不正确'
         ]);
     }
     

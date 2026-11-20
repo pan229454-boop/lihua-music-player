@@ -1,5 +1,5 @@
 <?php
-include "../comm/comm.php";
+include __DIR__ . "/../comm/comm.php";
 if (empty($_SESSION['login']) || $_SESSION['login'] == 0) {
 	exit;
 }

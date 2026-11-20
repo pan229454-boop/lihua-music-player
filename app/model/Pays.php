@@ -36,8 +36,7 @@ class Pays extends Base
             'shopid' => 1,
         ];
 		if ($self->insert($insert)) {
-            $row = $self->where('uid', '=', $userInfo['uid'])->order('addtime desc')->find();
-			$pay_url = '/Epay/submit?orderid=' . $row['orderid'] . '&type=' . $data['paytype'] . '';
+			$pay_url = '/Epay/submit?orderid=' . $insert['orderid'] . '&type=' . $data['paytype'] . '';
             $result = $pay_url;
         }
         return $result;

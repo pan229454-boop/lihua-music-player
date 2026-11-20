@@ -1,3 +1,4 @@
+{:theme_auth_style()}
 <script type="text/html" template>
   <link rel="stylesheet" href="{{ layui.setter.paths.core }}css/login.css?v={{ layui.admin.v }}" media="all">
 </script>
@@ -61,44 +62,54 @@ layui.use(['jquery', 'admin', 'form', 'layer'], function () {
             return;
         }
 
-        var captcha = new TencentCaptcha('2046626881', function (res) {
-            if (res.ret === 0) {
-                var index = layer.load(3);
+        // 腾讯验证码仅在脚本加载成功且域名已授权时可用；
+        // 内网/无外网环境下降级为直接提交（服务端已容忍验证码接口失效）。
+        function doLogin(ticket, randstr) {
+            var index = layer.load(3);
 
-                $.ajax({
-                    type: "POST",
-                    dataType: "json",
-                    data: {
-                        ticket: res.ticket,
-                        randstr: res.randstr,
-                        username: username,
-                        password: password
-                    },
-                    url: "/LoginAjax/login",
-                    success: function (data) {
-                        layer.close(index);
-                        if (data.code === 0) {
-                            layer.msg('登入成功', {
-                                offset: '15px',
-                                icon: 1,
-                                time: 1000
-                            }, function () {
-                                location.hash = layui.router().search.redirect ? decodeURIComponent(layui.router().search.redirect) : '/';
-                            });
-                        } else {
-                            layer.msg(data.msg);
-                        }
-                    },
-                    error: function () {
-                        layer.close(index);
-                        layer.msg('网络错误，请重试');
+            $.ajax({
+                type: "POST",
+                dataType: "json",
+                data: {
+                    ticket: ticket,
+                    randstr: randstr,
+                    username: username,
+                    password: password
+                },
+                url: "/LoginAjax/login",
+                success: function (data) {
+                    layer.close(index);
+                    if (data.code === 0) {
+                        layer.msg('登入成功', {
+                            offset: '15px',
+                            icon: 1,
+                            time: 1000
+                        }, function () {
+                            location.hash = layui.router().search.redirect ? decodeURIComponent(layui.router().search.redirect) : '/';
+                        });
+                    } else {
+                        layer.msg(data.msg);
                     }
-                });
-            } else {
-                layer.msg('验证码验证失败，请重试');
-            }
-        });
-        captcha.show();
+                },
+                error: function () {
+                    layer.close(index);
+                    layer.msg('网络错误，请重试');
+                }
+            });
+        }
+
+        if (typeof TencentCaptcha === 'function') {
+            var captcha = new TencentCaptcha('2046626881', function (res) {
+                if (res.ret === 0) {
+                    doLogin(res.ticket, res.randstr);
+                } else {
+                    layer.msg('验证码验证失败，请重试');
+                }
+            });
+            captcha.show();
+        } else {
+            doLogin('', '');
+        }
     });
 });
 </script>

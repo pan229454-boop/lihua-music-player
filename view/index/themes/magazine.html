@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{:config('web.webname')} - {:config('web.title')}</title>
+<meta name="description" content="{:config('web.description')}">
+<meta name="keywords" content="{:config('web.keywords')}">
+<meta name="theme-color" content="#f4efe6">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#f4efe6;color:#2f2620;
+  font-family:Georgia,'Times New Roman','Songti SC','STSong',SimSun,serif;font-size:16.5px;line-height:1.78;
+  background-image:radial-gradient(rgba(47,38,32,.05) 1px,transparent 1px);background-size:6px 6px}
+a{color:inherit;text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{width:min(1200px,92vw);margin:0 auto}
+.rule{border-top:1px solid #2f2620}
+.rule.d{border-top:3px double #2f2620}
+.rule.t{border-top:4px solid #2f2620}
+.masthead{padding-top:18px}
+.mast-top{display:flex;justify-content:space-between;gap:16px;padding:6px 0 10px;
+  font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:#6f5f52}
+.logo{margin:10px 0 6px;text-align:center;font-size:clamp(38px,8vw,86px);line-height:1;letter-spacing:.04em;font-weight:700}
+.tagline{margin:0 0 14px;text-align:center;font-size:15px;font-style:italic;color:#6f5f52}
+.mast-nav{display:flex;justify-content:center;gap:26px;padding:12px 0;font-size:12px;
+  letter-spacing:.2em;text-transform:uppercase;flex-wrap:wrap}
+.mast-nav a{padding-bottom:2px}
+.mast-nav a:hover{border-bottom:2px solid #b3541e;text-decoration:none}
+.mast-auth{padding:10px 0 6px;text-align:center;font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+.mast-auth .btn{display:inline-block;margin:0 6px;padding:7px 18px;border:1px solid #2f2620}
+.mast-auth .btn.solid{background:#2f2620;color:#f4efe6}
+.front{display:grid;grid-template-columns:1fr 300px;gap:34px;padding:30px 0 26px}
+.headline{margin:0 0 8px;font-size:clamp(30px,5vw,52px);line-height:1.06;letter-spacing:-.015em}
+.byline{margin:0 0 20px;padding-bottom:12px;border-bottom:1px solid rgba(47,38,32,.3);
+  font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#6f5f52}
+.cols{column-count:3;column-gap:30px;column-rule:1px solid rgba(47,38,32,.22)}
+.cols p{margin:0 0 14px}
+.dropcap:first-letter{float:left;margin:6px 9px 0 0;font-size:54px;line-height:.82;color:#b3541e}
+.pull{margin:16px 0;padding:14px 0;border-top:3px double #2f2620;border-bottom:3px double #2f2620;
+  font-size:20px;font-style:italic;line-height:1.4;color:#b3541e;break-inside:avoid}
+.box{border:1px solid rgba(47,38,32,.35);padding:16px 18px;margin-bottom:18px;background:rgba(255,253,248,.6)}
+.box h4{margin:0 0 10px;font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:#6f5f52;font-weight:400}
+.box dl{margin:0;display:grid;gap:9px}
+.box dl div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted rgba(47,38,32,.3);padding-bottom:6px}
+.box dt{font-size:13.5px;color:#6f5f52}
+.box dd{margin:0;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.toc{margin:0;padding:0;list-style:none;font-size:14.5px}
+.toc li{display:flex;align-items:baseline;gap:6px;padding:5px 0}
+.toc .f{flex:1;border-bottom:1px dotted rgba(47,38,32,.45);transform:translateY(-4px)}
+.toc .n{font-variant-numeric:tabular-nums;color:#6f5f52}
+.btn-b{display:block;text-align:center;padding:10px;border:1px solid #2f2620;background:#2f2620;color:#f4efe6;
+  font-size:12px;letter-spacing:.2em;text-transform:uppercase}
+.btn-b:hover{text-decoration:none;background:#b3541e;border-color:#b3541e}
+.spread{padding:34px 0 30px;border-top:3px double #2f2620}
+.spread-h{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:22px}
+.spread-h h2{margin:0;font-size:clamp(22px,3.2vw,34px);letter-spacing:-.01em}
+.spread-h span{font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:#6f5f52}
+.arts{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.art{border-top:1px solid rgba(47,38,32,.3);padding-top:14px}
+.art h3{margin:0 0 8px;font-size:18px;line-height:1.3}
+.art p{margin:0;font-size:15px;color:#4b3f36}
+.art .no{font-size:11.5px;letter-spacing:.2em;color:#b3541e;text-transform:uppercase}
+.record{display:grid;grid-template-columns:190px 1fr;gap:32px;align-items:center;padding:34px 0;border-top:3px double #2f2620}
+.disc{width:190px;height:190px;border-radius:50%;display:grid;place-items:center;color:#f4efe6;font-size:15px;letter-spacing:.2em;
+  background:repeating-radial-gradient(circle at 50% 50%,#2f2620 0 3px,#4b3f36 3px 6px)}
+.disc span{width:56px;height:56px;border-radius:50%;background:#b3541e;display:grid;place-items:center;font-size:12px}
+.record h3{margin:8px 0 8px;font-size:26px}
+.record p{margin:0 0 16px;color:#4b3f36}
+.line{height:1px;background:rgba(47,38,32,.3);position:relative}
+.line i{position:absolute;top:-2px;height:5px;width:36%;background:#b3541e;animation:mv 24s linear infinite}
+@keyframes mv{from{width:4%}to{width:96%}}
+.idx{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 44px}
+.idx div{display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid rgba(47,38,32,.18)}
+.idx .sw{width:34px;height:12px;border:1px solid rgba(0,0,0,.2);flex:0 0 auto;transform:translateY(-1px)}
+.idx .nm{font-weight:700}
+.idx .f{flex:1;border-bottom:1px dotted rgba(47,38,32,.4);transform:translateY(-4px)}
+.idx .pg{font-variant-numeric:tabular-nums;color:#6f5f52;font-size:13.5px}
+.idx .on{color:#b3541e;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase}
+.qa details{padding:14px 0;border-bottom:1px solid rgba(47,38,32,.2)}
+.qa summary{cursor:pointer;list-style:none;font-size:17px;font-weight:700}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary:before{content:'问 ';color:#b3541e;font-size:12px;letter-spacing:.16em}
+.qa p{margin:10px 0 0;color:#4b3f36;font-size:15.5px}
+.qa p:before{content:'答 ';color:#6f5f52;font-size:12px;letter-spacing:.16em}
+.end{padding:38px 0 30px;border-top:3px double #2f2620;text-align:center}
+.end h2{margin:0 0 10px;font-size:clamp(24px,4vw,40px)}
+.end .btn{display:inline-block;margin:14px 8px 0;padding:12px 30px;border:1px solid #2f2620;
+  font-size:12.5px;letter-spacing:.2em;text-transform:uppercase}
+.end .btn.solid{background:#2f2620;color:#f4efe6}
+.end .btn:hover{text-decoration:none;background:#b3541e;border-color:#b3541e;color:#fff}
+.colophon{border-top:4px solid #2f2620;padding:20px 0 46px;font-size:12.5px;color:#6f5f52;
+  display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
+.colophon .r{margin-left:auto;letter-spacing:.18em;text-transform:uppercase}
+.rv{opacity:0;transition:.7s ease}
+.rv.in{opacity:1}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1}.line i{animation:none}}
+@media (max-width:980px){
+.cols{column-count:2}
+.arts{grid-template-columns:1fr 1fr}
+.front{grid-template-columns:1fr;gap:24px}
+}
+@media (max-width:680px){
+.cols{column-count:1}
+.arts,.idx{grid-template-columns:1fr}
+.record{grid-template-columns:1fr;justify-items:center;text-align:center}
+.mast-top{font-size:10.5px;letter-spacing:.12em}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead wrap">
+  <div class="rule t"></div>
+  <div class="mast-top">
+    <span>第 {$site.theme_total} 期 · 音乐播放器专刊</span>
+    <span>免费赠阅</span>
+    <span>{:config('web.webname')}</span>
+  </div>
+  <div class="rule d"></div>
+  <h1 class="logo">{:config('web.webname')}</h1>
+  <p class="tagline">{:config('web.title')}</p>
+  <div class="rule d"></div>
+  <nav class="mast-nav">
+    <a href="#front">头版</a>
+    <a href="#record">唱片</a>
+    <a href="#features">专栏</a>
+    <a href="#themes">索引</a>
+    <a href="#qa">问答</a>
+  </nav>
+  <div class="rule"></div>
+  <div class="mast-auth">
+    {if condition="count($site.login) > 0"}
+    <a class="btn solid" href="/console">进入控制台</a>
+    {else /}
+    <a class="btn" href="/console#/user/act/login">登录</a>
+    <a class="btn solid" href="/console#/user/act/reg">订阅 · 免费注册</a>
+    {/if}
+  </div>
+  <div class="rule"></div>
+</header>
+
+<main class="wrap">
+
+  <section class="front" id="front">
+    <div>
+      <h2 class="headline">把一整套音乐播放器，装进你自己的网页里</h2>
+      <p class="byline">文 / 本站编辑部　　图 / 后台截图　　栏目 / 头版故事</p>
+      <div class="cols">
+        <p class="dropcap">{:config('web.description')} 这是一套开源的 HTML5 音乐播放器后台：歌单、歌曲、播放器外观都放在一个控制面板里管理，前台只负责好看和好放。</p>
+        <p>注册账号之后进入控制台，粘贴一条平台歌单链接就能整张导入，也可以手动一首首添加。</p>
+        <p class="pull">「贴一段短代码，音乐就跟着页面走。」</p>
+        <p>播放器支持 QQ 音乐、网易云音乐、酷狗音乐等平台，后台可以给播放器挑主题、设音量、开随机、写问候语。</p>
+        <p>生成的短代码粘到任何网站都能用，手机和电脑都会自适应；改完后台，前台立刻生效，不用重新部署。</p>
+      </div>
+    </div>
+    <aside>
+      <div class="box">
+        <h4>本刊数据</h4>
+        <dl>
+          <div><dt>首页风格</dt><dd>{$site.theme_total}</dd></div>
+          <div><dt>音乐接口</dt><dd>4</dd></div>
+          <div><dt>注册用户</dt><dd>{$data.users}</dd></div>
+          <div><dt>收录歌曲</dt><dd>{$data.songs}</dd></div>
+        </dl>
+      </div>
+      <div class="box">
+        <h4>目录</h4>
+        <ul class="toc">
+          <li><span>头版故事</span><span class="f"></span><span class="n">01</span></li>
+          <li><span>本期唱片</span><span class="f"></span><span class="n">02</span></li>
+          <li><span>专栏 · 功能</span><span class="f"></span><span class="n">03</span></li>
+          <li><span>风格索引</span><span class="f"></span><span class="n">04</span></li>
+          <li><span>读者问答</span><span class="f"></span><span class="n">05</span></li>
+        </ul>
+      </div>
+      <div class="box">
+        <h4>开始使用</h4>
+        <p style="margin:0 0 12px;font-size:14.5px">注册免费，三分钟把播放器挂上你自己的网站。</p>
+        <a class="btn-b" href="/console#/user/act/reg">免费注册</a>
+      </div>
+    </aside>
+  </section>
+
+  <section class="record" id="record">
+    <div class="disc"><span>PLAY</span></div>
+    <div>
+      {if condition="count($site.players) > 0"}
+      <span class="no" style="font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:#b3541e">本期推荐</span>
+      <h3>{$site.players.0.name}</h3>
+      <p>这是后台里真实存在的播放器，滚动到这里它就会出现在版面上。</p>
+      <div id="music" api="{:get_domain()}"></div>
+      <script id="xplayer" src="{:get_domain()}api/PlayerJs/id/{$site.players.0.id}"></script>
+      {else /}
+      <span class="no" style="font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:#b3541e">本期推荐 · 试听样张</span>
+      <h3>正在播放：夜曲</h3>
+      <p>播放器预览。在后台创建一个播放器，这里就会换成你自己的真实播放器。</p>
+      <div class="line"><i></i></div>
+      {/if}
+    </div>
+  </section>
+
+  <section class="spread" id="features">
+    <div class="spread-h"><h2>专栏 · 这套后台能做什么</h2><span>第 03 版</span></div>
+    <div class="arts">
+      <article class="art"><span class="no">专栏一</span><h3>多平台解析</h3><p>QQ 音乐、网易云、酷狗等平台的歌曲链接直接解析播放，歌单可以整张导入，也可以手动补歌。</p></article>
+      <article class="art"><span class="no">专栏二</span><h3>歌单与歌曲管理</h3><p>无限歌单、无限歌曲，后台导入、排序、上下架，所有改动实时生效。</p></article>
+      <article class="art"><span class="no">专栏三</span><h3>播放器短代码</h3><p>创建播放器即得一段 div + script，贴到任何网站上都能放歌，样式在后台统一改。</p></article>
+      <article class="art"><span class="no">专栏四</span><h3>首页风格随时换</h3><p>{$site.theme_total} 套首页风格，后台一点即换；登录、注册页的配色跟着主题一起走。</p></article>
+      <article class="art"><span class="no">专栏五</span><h3>首页留言板</h3><p>访客不用注册就能留言，有新留言按钮冒红点，后台可以删留言、也可以整体关掉。</p></article>
+      <article class="art"><span class="no">专栏六</span><h3>统计与服务器状态</h3><p>控制面板实时显示 CPU、内存、负载曲线；服务器状态能按进程查看，还能结束掉多余进程。</p></article>
+    </div>
+  </section>
+
+  <section class="spread" id="themes">
+    <div class="spread-h"><h2>风格索引</h2><span>共 {$site.theme_total} 套 · 后台一键切换</span></div>
+    <div class="idx">
+      {volist name="site.themes" id="t"}
+      <div>
+        <span class="sw" style="background:linear-gradient(135deg,{$t.c1},{$t.c2} 55%,{$t.c3})"></span>
+        <span class="nm">{$t.name}</span>
+        {if condition="$t.key == $theme"}<span class="on">使用中</span>{/if}
+        <span class="f"></span>
+        <span class="pg">{$t.key}</span>
+      </div>
+      {/volist}
+    </div>
+  </section>
+
+  <section class="spread qa" id="qa">
+    <div class="spread-h"><h2>读者问答</h2><span>编辑部回复</span></div>
+    <details><summary>这个是免费的吗？</summary><p>注册即可使用，后台可以自由添加歌单、歌曲和播放器；额度与会员规则在后台「网站设置」里配置。</p></details>
+    <details><summary>支持哪些音乐平台？</summary><p>播放器支持 QQ 音乐、网易云音乐、酷狗音乐等平台的歌曲链接解析，歌单可以整张导入。</p></details>
+    <details><summary>怎么放到我自己的网站上？</summary><p>后台创建一个播放器，复制生成的短代码（一段 div + script）粘到你网站的页面里即可。</p></details>
+    <details><summary>首页风格能换吗？</summary><p>可以。后台「主题设置」里有 {$site.theme_total} 套首页风格，点启用立即生效，登录页和注册页会跟着换配色。</p></details>
+    <details><summary>忘记密码怎么办？</summary><p>登录页有「找回密码」，用注册邮箱收验证码重置；收不到邮件就去「更多设置」里检查发信配置。</p></details>
+  </section>
+
+  <section class="end">
+    <h2>下一期，就是你的播放器</h2>
+    <p style="margin:0;color:#6f5f52">免费使用 · 后台可视化管理 · 风格随时换</p>
+    <a class="btn solid" href="/console#/user/act/reg">免费注册</a>
+    <a class="btn" href="/console#/user/act/login">登录后台</a>
+    <a class="btn" href="/help">帮助文档</a>
+  </section>
+
+</main>
+
+<footer class="colophon wrap">
+  <span>© 2019 - <span id="year"></span> {:config('web.webname')} 版权所有</span>
+  <a href="/?chat=1">留言板</a>
+  <a href="/help">帮助文档</a>
+  <span class="r">STYLE / MAGAZINE</span>
+</footer>
+
+<script>
+(function(){
+  var y = document.getElementById('year');
+  if (y) { y.textContent = new Date().getFullYear(); }
+  var els = document.querySelectorAll('.art, .box, .record, .idx div, .qa details, .end');
+  for (var i = 0; i < els.length; i++) { els[i].className += ' rv'; }
+  if (window.IntersectionObserver) {
+    var io = new IntersectionObserver(function(en){
+      for (var i = 0; i < en.length; i++) {
+        if (en[i].isIntersecting) { en[i].target.className += ' in'; io.unobserve(en[i].target); }
+      }
+    }, { threshold: 0.06 });
+    for (var j = 0; j < els.length; j++) { io.observe(els[j]); }
+  } else {
+    for (var k = 0; k < els.length; k++) { els[k].className += ' in'; }
+  }
+})();
+</script>
+</body>
+</html>

@@ -7,39 +7,49 @@ class Song extends Base
 {
 	
     public static function findMusicInfo($data){
-        try {
-            $sourceId = $data['music_source'] ?? 'legacy';
-            $source = \PHPMailer\MusicSourceRegistry::get($sourceId);
-            if ($source['provider'] === 'shymusic') {
-                $result = (new \PHPMailer\MusicSourceService($sourceId))->info($data['type'] ?? '', $data['songid'] ?? '');
-                $result['music_url'] = '/AdminAjax/Song/act/preview?' . http_build_query(['music_source'=>$sourceId, 'type'=>$data['type'] ?? '', 'songid'=>$data['songid'] ?? '']);
-                return $result;
-            }
-        } catch (\Throwable $e) {
-            return ['code' => -1, 'msg' => $e->getMessage()];
-        }
-		$json = send_get(Config::get('api.music').'?input='.$data['songid'].'&filter=id&type='.$data['type'].'&page=1&url='. $_SERVER['SERVER_NAME']);
-		$data=json_decode($json,true);
-        if($data==''){
-			return '';
-		}else{
-			$arr = [
+		$type = strtolower(trim((string) ($data['type'] ?? '')));
+		$songid = trim((string) ($data['songid'] ?? ''));
+		$api = music_api_url();
+		$mode = music_api_mode();
+		$json = '';
+		$row = [];
+		if ($mode !== 'vkeys') {
+			$json = send_get($api . '?input=' . urlencode($songid) . '&filter=id&type=' . urlencode($type) . '&page=1&url=' . $_SERVER['SERVER_NAME']);
+			$tmp = json_decode((string) $json, true);
+			if (is_array($tmp) && !empty($tmp['url'])) {
+				$row = $tmp;
+			}
+		}
+		// 自己填的接口取不到时，用内置的免费接口兜底（目前只有 QQ 音乐）
+		if (empty($row['url']) && $mode !== 'default') {
+			$alt = music_vkeys_resolve($type, $songid);
+			if ($alt) {
+				$row = ['title' => $alt['title'], 'author' => $alt['author'], 'pic' => $alt['pic'], 'url' => $alt['url']];
+			}
+		}
+		if (!empty($row['url'])) {
+			return [
 				"code" => 0,
-				"song_name" => $data['title'],
-				"artist_name" => $data['author'],
-				"album_name" => $data['title'],
-				"album_cover" => $data['pic'],
-				"music_url" => $data['url'],
+				"song_name" => $row['title'] ?? '',
+				"artist_name" => $row['author'] ?? '',
+				"album_name" => $row['album'] ?? ($row['title'] ?? ''),
+				"album_cover" => $row['pic'] ?? '',
+				"music_url" => $row['url'],
 				"location" => '',
 				"lyric" => '',
 			];
-			return $arr;
 		}
-		
+		// 失败：说清楚是接口的问题，别再说「未找到任何歌曲」
+		if (trim((string) $json) === '' && $mode !== 'default') {
+			return ['code' => -2, 'msg' => '音乐接口暂时不可用：' . music_api_host() . ' 没有响应，内置的免费接口也没取到（它目前只支持 QQ 音乐），稍后再试'];
+		}
+		if (trim((string) $json) === '') {
+			return ['code' => -2, 'msg' => '音乐接口暂时不可用：' . music_api_host() . ' 没有响应（上游服务器可能宕机了），稍后再试'];
+		}
+		return ['code' => -2, 'msg' => '上游音乐接口（' . music_api_host() . '）没有返回这首歌的播放地址，稍后再试'];
     }
-	
-	
-	public static function findSheetInfo($type, $songsheetid) {
+
+		 function findSheetInfo($type, $songsheetid) {
     $song_list = [];
 
     switch ($type) {

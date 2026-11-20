@@ -1,0 +1,12 @@
+/runtime/
+.env
+*.log
+/public/uploads/
+*.bak
+*.bak1
+*.bak2
+*.swp
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,10 +1,15 @@
 <div class="layui-container">
     <h1 class="layui-bg-blue" style="padding: 15px; color: white; text-align: center; border-radius: 5px;">服务器运行状态</h1>
+    <div id="serverInfo" class="layui-text" style="margin: 10px 0; color: #666; line-height: 1.9;">加载中...</div>
     <table class="layui-table" id="serverTable" lay-filter="serverTable"></table>
 </div>
 
 <script type="text/html" id="operationBar">
+    {{# if(d.protect){ }}
+    <span style="color: #999; font-size: 12px;">受保护</span>
+    {{# } else { }}
     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="stop">停止</a>
+    {{# } }}
 </script>
 
 <script>
@@ -16,15 +21,16 @@
         // 获取服务器状态
         $.get('/serverStatus/getStatus', function(res) {
             if (res.status === 'success') {
+                $('#serverInfo').html('共 ' + res.count + ' 个进程，其中 ' + res.protected + ' 个受保护（不允许停止）　内存总量 ' + res.memTotal + '　PHP ' + res.php + '　' + res.os + '<br><span style="color: #999;">' + res.tip + '</span>');
                 table.render({
                     elem: '#serverTable',
                     cols: [[
                         { field: 'pid', title: 'PID', width: 100, sort: true },
                         { field: 'user', title: '用户', width: 120 },
-                        { field: 'cpu', title: 'CPU%', width: 100, sort: true },
-                        { field: 'mem', title: '内存%', width: 100, sort: true },
-                        { field: 'command', title: '命令', width: 300 },
-                        { toolbar: '#operationBar', title: '操作', width: 120 }
+                        { field: 'cpu', title: 'CPU%（累计）', width: 165, sort: true, templet: function(d){ return d.cpu + '%　' + d.cputime; } },
+                        { field: 'mem', title: '内存%（占用）', width: 165, sort: true, templet: function(d){ return d.mem + '%　' + d.rss; } },
+                        { field: 'command', title: '命令', minWidth: 260 },
+                        { toolbar: '#operationBar', title: '操作', width: 110 }
                     ]],
                     data: res.data,
                     page: true, // 开启分页

@@ -1,0 +1,321 @@
+<title>更多设置</title>
+
+<div class="layui-fluid">
+  <div class="layui-row layui-col-space15">
+    <div class="layui-col-md12">
+      <div class="layui-card">
+        <div class="layui-card-header">邮箱设置（验证码邮件 / 找回密码）</div>
+        <div class="layui-card-body" pad15>
+          <div class="layui-form" wid100 lay-filter="moreset">
+            <div class="layui-form-item">
+              <label class="layui-form-label">邮箱功能</label>
+              <div class="layui-input-block">
+                <select name="mail_enable" lay-verify="">
+                  <option value="1" {:config('web.mail_enable') == '0' ? '' : 'selected'}>开启（注册/找回密码可发送验证码）</option>
+                  <option value="0" {:config('web.mail_enable') == '0' ? 'selected' : ''}>关闭（不再发送任何邮件）</option>
+                </select>
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">SMTP 服务器</label>
+              <div class="layui-input-block">
+                <input type="text" name="smtp_host" value="{:htmlspecialchars((string)config('web.smtp_host'))}" placeholder="例如 smtp.qq.com（留空则用代码里的默认值）" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">加密方式</label>
+              <div class="layui-input-block">
+                <select name="smtp_secure">
+                  <option value="ssl" {:config('web.smtp_secure') == 'tls' || config('web.smtp_secure') == 'none' ? '' : 'selected'}>SSL（常用，一般配合 465 端口）</option>
+                  <option value="tls" {:config('web.smtp_secure') == 'tls' ? 'selected' : ''}>STARTTLS（一般配合 587 端口）</option>
+                  <option value="none" {:config('web.smtp_secure') == 'none' ? 'selected' : ''}>不加密（一般配合 25 端口）</option>
+                </select>
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">端口</label>
+              <div class="layui-input-block">
+                <input type="text" name="smtp_port" value="{:htmlspecialchars((string)config('web.smtp_port'))}" placeholder="留空按加密方式自动选择（465 / 587 / 25）" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">邮箱账号</label>
+              <div class="layui-input-block">
+                <input type="text" name="smtp_user" value="{:htmlspecialchars((string)config('web.smtp_user'))}" placeholder="登录 SMTP 的完整邮箱地址" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">邮箱授权码</label>
+              <div class="layui-input-block">
+                <input type="text" name="smtp_pass" value="{:htmlspecialchars((string)config('web.smtp_pass'))}" placeholder="QQ/163 邮箱需填「授权码」，不是登录密码" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">发件人地址</label>
+              <div class="layui-input-block">
+                <input type="text" name="mail_from" value="{:htmlspecialchars((string)config('web.mail_from'))}" placeholder="留空则与邮箱账号相同" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">发件人名称</label>
+              <div class="layui-input-block">
+                <input type="text" name="mail_from_name" value="{:htmlspecialchars((string)config('web.mail_from_name'))}" placeholder="收件人看到的发件人昵称" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">邮件里站点链接</label>
+              <div class="layui-input-block">
+                <input type="text" name="mail_demo" value="{:htmlspecialchars((string)config('web.mail_demo'))}" placeholder="留空则使用当前站点地址" class="layui-input">
+              </div>
+            </div>
+
+            <div class="layui-form-item">
+              <label class="layui-form-label">发送测试邮件</label>
+              <div class="layui-input-block">
+                <div class="layui-input-inline">
+                  <input type="text" id="testMailTo" value="" placeholder="收件邮箱，例如 you@qq.com" class="layui-input">
+                </div>
+                <button type="button" class="layui-btn layui-btn-normal" id="testMailBtn">发送测试</button>
+                <div class="layui-word-aux" style="color:#999">请先「确认保存」，配置才会生效；测试结果会直接显示失败原因。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layui-col-md12">
+      <div class="layui-card">
+        <div class="layui-card-header">登录与验证码安全</div>
+        <div class="layui-card-body" pad15>
+          <div class="layui-form" wid100 lay-filter="moreset2">
+            <div class="layui-form-item">
+              <label class="layui-form-label">登录失败上限</label>
+              <div class="layui-input-block">
+                <input type="text" name="login_fail_limit" value="{:htmlspecialchars((string)config('web.login_fail_limit'))}" placeholder="默认 8 次，填 0 表示不限制" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">锁定时长(分钟)</label>
+              <div class="layui-input-block">
+                <input type="text" name="login_lock_minutes" value="{:htmlspecialchars((string)config('web.login_lock_minutes'))}" placeholder="默认 15 分钟" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">验证码重发间隔</label>
+              <div class="layui-input-block">
+                <input type="text" name="regcode_cooldown" value="{:htmlspecialchars((string)config('web.regcode_cooldown'))}" placeholder="默认 60 秒，填 0 表示不限制" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">同 IP 每小时上限</label>
+              <div class="layui-input-block">
+                <input type="text" name="regcode_ip_limit" value="{:htmlspecialchars((string)config('web.regcode_ip_limit'))}" placeholder="默认 10 次，填 0 表示不限制" class="layui-input">
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <label class="layui-form-label">登录保持</label>
+              <div class="layui-input-block">
+                <select name="login_keep_days">
+                  <option value="0" {:config('web.login_keep_days') === '0' ? 'selected' : ''}>关闭浏览器就退出（最安全）</option>
+                  <option value="1" {:config('web.login_keep_days') == '1' ? 'selected' : ''}>保持 1 天</option>
+                  <option value="7" {:config('web.login_keep_days') == '7' ? 'selected' : ''}>保持 7 天</option>
+                  <option value="30" {:config('web.login_keep_days') == '30' || !config('web.login_keep_days') ? 'selected' : ''}>保持 30 天（默认）</option>
+                  <option value="180" {:config('web.login_keep_days') == '180' ? 'selected' : ''}>保持 180 天</option>
+                  <option value="3650" {:config('web.login_keep_days') == '3650' ? 'selected' : ''}>一直保持（10 年）</option>
+                </select>
+                <div class="layui-form-mid layui-word-aux" style="color: #999; font-size: 12px;">登录时按这里的时间写入登录 Cookie，改完要重新登录一次才生效（已经发出去的 Cookie 还是按旧的时间走）。同一个账号可以在多台设备/浏览器同时登录，互不影响。</div>
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <div class="layui-input-block">
+                <button class="layui-btn" lay-submit lay-filter="set_more">确认保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layui-col-md12">
+      <div class="layui-card">
+        <div class="layui-card-header">域名授权</div>
+        <div class="layui-card-body" pad15>
+          <div class="lh-card-form">
+            <div class="layui-form-item">
+              <label class="layui-form-label">功能开关</label>
+              <div class="layui-input-block">
+                <input type="checkbox" class="lh-hidden" id="authDomainEnable" name="auth_domain_enable" value="1" {:config('web.auth_domain_enable') === '0' ? '' : 'checked'}>
+                <label class="lh-switch" for="authDomainEnable" title="开启或关闭域名授权功能"><span class="lh-slider"></span></label>
+                <span class="lh-state-on">已开启</span><span class="lh-state-off">已关闭</span>
+              </div>
+            </div>
+            <div class="layui-form-item">
+              <div class="layui-input-block">
+                <button class="layui-btn" id="lhDomainSave" type="button">保存</button>
+                <span style="margin-left:12px;color:#999;font-size:12px;">
+                  开启后，播放器编辑页会显示「域名授权」标签，里面有已授权域名列表和新增授权表单；<br>
+                  关闭后这个标签整块不再显示，授权接口也不再接受新增/删除操作（已经授权过的域名记录会保留，重新开启就能看到）。<br>
+                  授权顶级域名（比如 example.com）后，它的所有二级域名（a.example.com、b.example.com……）默认都可用，不用逐个授权。
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="layui-col-md12">
+      <div class="layui-card">
+        <div class="layui-card-header">音乐授权（授权QQ / skey）</div>
+        <div class="layui-card-body" pad15>
+        <style>
+          .lh-hidden{position:absolute;opacity:0;width:0;height:0;margin:0;padding:0;border:0}
+          .lh-switch{position:relative;display:inline-block;width:52px;height:26px;vertical-align:middle;cursor:pointer;background:#d2d2d2;border-radius:26px;transition:background .2s;margin:0}
+          .lh-switch .lh-slider{position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .25s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+          .lh-state-on{display:none;color:#5FB878;margin-left:8px;font-size:13px;vertical-align:middle}
+          .lh-state-off{color:#999;margin-left:8px;font-size:13px;vertical-align:middle}
+          #authQqBox{display:none}
+          #authDomainEnable:checked + .lh-switch,
+          #authQqEnable:checked + .lh-switch{background:#5FB878}
+          #authDomainEnable:checked + .lh-switch .lh-slider,
+          #authQqEnable:checked + .lh-switch .lh-slider{left:29px}
+          #authDomainEnable:checked ~ .lh-state-on,
+          #authQqEnable:checked ~ .lh-state-on{display:inline}
+          #authDomainEnable:checked ~ .lh-state-off,
+          #authQqEnable:checked ~ .lh-state-off{display:none}
+          #authQqEnable:checked ~ #authQqBox{display:block}
+        </style>
+          <div class="layui-form-item">
+            <label class="layui-form-label">授权验证</label>
+            <div class="layui-input-block">
+              <input type="checkbox" class="lh-hidden" id="authQqEnable" name="auth_qq_enable" value="1" {:config('web.auth_qq_enable') === '1' ? 'checked' : ''}>
+              <label class="lh-switch" for="authQqEnable" title="开启或关闭授权验证"><span class="lh-slider"></span></label>
+              <span class="lh-state-on">已开启：按授权QQ + skey 校验</span>
+              <span class="lh-state-off">已关闭：跳过授权验证</span>
+              <div class="layui-form-mid layui-word-aux" style="display:block;margin-top:6px;">
+                关闭（默认）＝<b>跳过授权验证</b>：取歌不再问授权服务器，直接走音乐接口，音乐正常使用；<br>
+                开启＝用下面的授权QQ + skey 去上游校验，校验不通过会播放一段提示音（域名未授权 / skey有误）。<br>
+                两个值没填全（或 skey 还是模板里的占位符）时会自动跳过验证，不会卡住播放。
+              </div>
+              <div id="authQqBox">
+                <p style="margin:10px 0 4px;color:#666;font-size:13px;">授权QQ</p>
+                <input type="text" name="auth_qq" value="{:htmlspecialchars((string)config('web.auth_qq'))}" placeholder="上游给你的授权QQ" autocomplete="off" class="layui-input">
+                <p style="margin:10px 0 4px;color:#666;font-size:13px;">skey（授权码）</p>
+                <input type="text" name="auth_skey" value="{:htmlspecialchars((string)config('web.auth_skey'))}" placeholder="上游给你的 skey" autocomplete="off" class="layui-input">
+              </div>
+              <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e6e6e6;">
+                <p style="margin:0 0 4px;color:#666;font-size:13px;">音乐接口地址（取歌 / 试听用的解析接口）</p>
+                <input type="text" name="music_api" value="{:htmlspecialchars((string)config('web.music_api'))}" placeholder="留空 = 用默认 https://musicapi.cenguigui.cn" autocomplete="off" class="layui-input">
+                <p style="margin:10px 0 4px;color:#666;font-size:13px;">接口格式</p>
+                <select name="music_api_mode" class="layui-input" style="height:38px;">
+                  <option value="auto" {:in_array(config('web.music_api_mode'), ['', null, 'auto'], true) ? 'selected' : ''}>自动（推荐）：先用上面的接口，取不到就用内置免费接口</option>
+                  <option value="default" {:config('web.music_api_mode') === 'default' ? 'selected' : ''}>只用上面填的接口（梨花带雨格式）</option>
+                  <option value="vkeys" {:config('web.music_api_mode') === 'vkeys' ? 'selected' : ''}>只用内置免费接口 api.vkeys.cn（目前只支持 QQ 音乐）</option>
+                </select>
+                <p style="margin:6px 0 0;color:#999;font-size:12px;">搜索不走这个接口（搜索用的是各平台官方接口，所以能搜到歌）；取歌和试听才走它。默认接口是上游官方的，它宕机时全网都取不到歌，这时可以在这里换成你自己可用的接口；留空恢复默认。</p>
+              </div>
+              <button class="layui-btn" id="lhQqAuthSave" type="button" style="margin-top:12px;">保存</button>
+              <span style="margin-left:12px;color:#999;font-size:12px;">改完保存即生效（取歌时会读最新配置）。</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+layui.use(['admin', 'form'], function(){
+  var $ = layui.$
+  ,form = layui.form;
+
+  form.render();
+
+  // 统一的提示（layer 不可用时退回 alert）
+  function tip(msg){
+    if (layui.layer && layui.layer.msg) { layui.layer.msg(msg); } else { alert(msg); }
+  }
+
+  // 保存：沿用后台统一的配置保存接口（已做参数绑定与键名白名单）
+  // 音乐授权：开关联动输入框显示
+  layui.form.on('switch(authQqSwitch)', function(obj){
+    $('#authQqBox').toggle(!!obj.elem.checked);
+  });
+
+  $('#lhQqAuthSave').on('click', function(){
+    var on = $('input[name=auth_qq_enable]').prop('checked') ? '1' : '0';
+    $.ajax({
+      url: "/AdminAjax/config",
+      data: {
+        auth_qq_enable: on,
+        auth_qq: $('input[name=auth_qq]').val(),
+        auth_skey: $('input[name=auth_skey]').val()
+      , music_api: $('input[name=music_api]').val() , music_api_mode: $('select[name=music_api_mode]').val() },
+      type: "Post",
+      dataType: "json",
+      success: function(data){
+        if (data.code == 0) {
+          tip(on === '1' ? '已开启授权验证（按填写的授权QQ + skey 校验）' : '已关闭授权验证，取歌将直接走音乐接口');
+        } else {
+          tip(data.msg || data.message || '保存失败');
+        }
+      },
+      error: function(){ tip('请求失败，请检查登录状态'); }
+    });
+  });
+
+  // 域名授权功能开关（单独保存，不用等整个表单）
+  $('#lhDomainSave').on('click', function(){
+    var on = $('input[name=auth_domain_enable]').prop('checked') ? '1' : '0';
+    $.ajax({
+      url: "/AdminAjax/config",
+      data: { auth_domain_enable: on },
+      type: "Post",
+      dataType: "json",
+      success: function(data){
+        if (data.code == 0) {
+          tip(on === '1' ? '已开启域名授权功能' : '已关闭域名授权功能，播放器页不再显示授权界面');
+        } else {
+          tip(data.msg || data.message || '保存失败');
+        }
+      },
+      error: function(){ tip('请求失败，请检查登录状态'); }
+    });
+  });
+
+  form.on('submit(set_more)', function(obj){
+    $.ajax({
+      url: "/AdminAjax/config",
+      data: obj.field,
+      type: "Post",
+      dataType: "json",
+      success: function(data){
+        if (data.code == 0) {
+          tip(data.msg || data.message || '保存成功');
+        } else {
+          tip(data.msg || data.message || '保存失败');
+        }
+      },
+      error: function(){ tip('保存失败，请检查登录状态'); }
+    });
+    return false;
+  });
+
+  // 发送测试邮件
+  $('#testMailBtn').on('click', function(){
+    var to = $.trim($('#testMailTo').val());
+    if (!to) { tip('请先填写收件邮箱'); return; }
+    var btn = $(this);
+    btn.addClass('layui-btn-disabled').text('发送中...');
+    $.ajax({
+      url: "/AdminAjax/moresetTestMail",
+      data: {email: to},
+      type: "Post",
+      dataType: "json",
+      success: function(data){ tip(data.msg || '未知结果'); },
+      error: function(){ tip('请求失败，请检查登录状态'); },
+      complete: function(){ btn.removeClass('layui-btn-disabled').text('发送测试'); }
+    });
+  });
+});
+</script>
